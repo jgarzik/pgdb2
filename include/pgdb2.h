@@ -6,6 +6,13 @@
 
 namespace pagedb {
 
+#define SB_MAGIC "PGDB0000"
+
+enum sb_features {
+	SBF_MBO		= (1ULL << 63),		// must be one
+	SBF_MBZ		= (1ULL << 62),		// must be zero
+};
+
 struct Superblock {
 	unsigned char	magic[8];
 	uint32_t	version;

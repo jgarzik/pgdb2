@@ -69,20 +69,27 @@ void DB::readSuperblock()
 	if (rrc != sizeof(sb))
 		throw std::runtime_error("Superblock short read");
 
-	if (memcmp(sb.magic, "PGDB0000", sizeof(sb.magic)))
-		throw std::runtime_error("Superblock invalid magic");
-
 	sb.version = le32toh(sb.version);
 	sb.page_size = le32toh(sb.page_size);
 	sb.features = le64toh(sb.features);
+
+	if (memcmp(sb.magic, SB_MAGIC, sizeof(sb.magic)))
+		throw std::runtime_error("Superblock invalid magic");
+	if (sb.version < 1)
+		throw std::runtime_error("Superblock invalid version");
+	if (sb.page_size < 512 || sb.page_size > 65536)
+		throw std::runtime_error("Superblock invalid page size");
+	if ((!(sb.features & SBF_MBO)) || (sb.features & SBF_MBZ))
+		throw std::runtime_error("Superblock invalid features");
 }
 
 void DB::initSuperblock()
 {
 	memset(&sb, 0, sizeof(sb));
-	memcpy(sb.magic, "PGDB0000", sizeof(sb.magic));
+	memcpy(sb.magic, SB_MAGIC, sizeof(sb.magic));
 	sb.version = 1;
 	sb.page_size = 4096;
+	sb.features = SBF_MBO;
 }
 
 void DB::writeSuperblock()
