@@ -7,9 +7,9 @@
 #include <errno.h>
 #include <stdexcept>
 #include <vector>
-#include <pgdb2.h>
-#include <endian.h>
 #include <assert.h>
+#include <pgdb2.h>
+#include <endian_compat.h>
 
 namespace pagedb {
 
