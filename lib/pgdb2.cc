@@ -6,7 +6,10 @@
 #include <string.h>
 #include <errno.h>
 #include <stdexcept>
+#include <vector>
 #include <pgdb2.h>
+#include <endian.h>
+#include <assert.h>
 
 namespace pagedb {
 
@@ -18,6 +21,9 @@ DB::DB(std::string filename_, const Options& opt_)
 	options = opt_;
 
 	open();
+	readSuperblock();
+
+	running = true;
 }
 
 void DB::open()
@@ -31,14 +37,74 @@ void DB::open()
 	else
 		throw std::runtime_error("Invalid read/write options");
 
-	if (options.f_create)
+	if (options.f_create) {
+		if (!options.f_write)
+			throw std::runtime_error("Invalid creat/write options");
 		flags |= O_CREAT;
+	}
 
 	fd = ::open(filename.c_str(), flags, 0666);
 	if (fd < 0)
 		throw std::runtime_error("Failed open " + filename + ": " + strerror(errno));
+}
 
-	running = true;
+void DB::readSuperblock()
+{
+	assert(fd >= 0);
+
+	struct stat st;
+	int frc = ::fstat(fd, &st);
+	if (frc < 0)
+		throw std::runtime_error("Failed fstat " + filename + ": " + strerror(errno));
+
+	if ((st.st_size == 0) && (options.f_create)) {
+		initSuperblock();
+		return;
+	}
+
+	ssize_t rrc = ::read(fd, &sb, sizeof(sb));
+	if (rrc < 0)
+		throw std::runtime_error("Failed read " + filename + ": " + strerror(errno));
+	if (rrc != sizeof(sb))
+		throw std::runtime_error("Superblock short read");
+
+	if (memcmp(sb.magic, "PGDB0000", sizeof(sb.magic)))
+		throw std::runtime_error("Superblock invalid magic");
+
+	sb.version = le32toh(sb.version);
+	sb.page_size = le32toh(sb.page_size);
+	sb.features = le64toh(sb.features);
+}
+
+void DB::initSuperblock()
+{
+	assert(fd >= 0);
+
+	memset(&sb, 0, sizeof(sb));
+	memcpy(sb.magic, "PGDB0000", sizeof(sb.magic));
+	sb.version = 1;
+	sb.page_size = 4096;
+
+	Superblock write_sb;
+	memcpy(&write_sb, &sb, sizeof(sb));
+
+	write_sb.version = htole32(write_sb.version);
+	write_sb.page_size = htole32(write_sb.page_size);
+	write_sb.features = htole64(write_sb.features);
+
+	std::vector<unsigned char> page;
+	page.resize(sb.page_size);
+	memcpy(&page[0], &write_sb, sizeof(write_sb));
+
+	off_t lres = ::lseek(fd, 0, SEEK_SET);
+	if (lres < 0)
+		throw std::runtime_error("Failed seek " + filename + ": " + strerror(errno));
+
+	ssize_t wrc = ::write(fd, &page[0], page.size());
+	if (wrc < 0)
+		throw std::runtime_error("Failed write " + filename + ": " + strerror(errno));
+	if (wrc != (ssize_t)page.size())
+		throw std::runtime_error("Superblock short write");
 }
 
 DB::~DB()

@@ -23,10 +23,34 @@ int main (int argc, char *argv[])
 	}
 	assert(saw_err == true);
 
-	// TEST: open/close foo.db
+	// TEST: open/close new foo.db
 	opts.f_read = true;
 	opts.f_write = true;
 	opts.f_create = true;
+
+	try {
+		pagedb::DB db("foo.db", opts);
+	}
+	catch (...) {
+		assert(0);
+	}
+
+	// TEST: open/close pre-existing foo.db, read-only
+	opts.f_read = true;
+	opts.f_write = false;
+	opts.f_create = false;
+
+	try {
+		pagedb::DB db("foo.db", opts);
+	}
+	catch (...) {
+		assert(0);
+	}
+
+	// TEST: open/close pre-existing foo.db, read/write
+	opts.f_read = true;
+	opts.f_write = true;
+	opts.f_create = false;
 
 	try {
 		pagedb::DB db("foo.db", opts);
