@@ -1,9 +1,12 @@
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
-TESTS = dummy
+EXTRA_DIST = run-basic.sh
 
-noinst_PROGRAMS = dummy
+TESTS = run-basic.sh
 
-dummy_SOURCES = dummy.cc
+noinst_PROGRAMS = basic
+
+basic_SOURCES = basic.cc
+basic_LDADD = ../lib/libpgdb2.la
 
