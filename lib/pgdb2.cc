@@ -59,6 +59,7 @@ void DB::readSuperblock()
 
 	if ((st.st_size == 0) && (options.f_create)) {
 		initSuperblock();
+		writeSuperblock();
 		return;
 	}
 
@@ -78,12 +79,15 @@ void DB::readSuperblock()
 
 void DB::initSuperblock()
 {
-	assert(fd >= 0);
-
 	memset(&sb, 0, sizeof(sb));
 	memcpy(sb.magic, "PGDB0000", sizeof(sb.magic));
 	sb.version = 1;
 	sb.page_size = 4096;
+}
+
+void DB::writeSuperblock()
+{
+	assert(fd >= 0);
 
 	Superblock write_sb;
 	memcpy(&write_sb, &sb, sizeof(sb));

@@ -38,6 +38,7 @@ public:
 private:
 	void open();
 	void readSuperblock();
+	void writeSuperblock();
 	void initSuperblock();
 
 };
