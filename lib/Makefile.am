@@ -1,4 +1,6 @@
 
+AM_CPPFLAGS = -I$(top_srcdir)/include
+
 lib_LTLIBRARIES = libpgdb2.la
 
 libpgdb2_la_SOURCES = pgdb2.cc

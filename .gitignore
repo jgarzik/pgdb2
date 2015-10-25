@@ -25,4 +25,5 @@ ltmain.sh
 *.la
 
 pgdb2-config.h*
+pgdb2-*.tar.gz
 
