@@ -40,6 +40,7 @@ public:
 	~File();
 
 	bool isOpen() { return (fd >= 0); }
+	void setPageSize(size_t sz) { page_size = sz; }
 
 	void open();
 	void open(std::string filename_, int o_flags_ = O_RDONLY, size_t page_size = 4096);

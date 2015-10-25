@@ -130,7 +130,7 @@ void DB::open()
 		flags |= O_CREAT;
 	}
 
-	f.open(filename, flags, 4096);
+	f.open(filename, flags, sizeof(Superblock));
 }
 
 void DB::readSuperblock()
@@ -163,6 +163,8 @@ void DB::readSuperblock()
 		throw std::runtime_error("Superblock invalid page size");
 	if ((!(sb.features & SBF_MBO)) || (sb.features & SBF_MBZ))
 		throw std::runtime_error("Superblock invalid features");
+
+	f.setPageSize(sb.page_size);
 }
 
 void DB::initSuperblock()
@@ -172,6 +174,8 @@ void DB::initSuperblock()
 	sb.version = 1;
 	sb.page_size = 4096;
 	sb.features = SBF_MBO;
+
+	f.setPageSize(sb.page_size);
 }
 
 void DB::writeSuperblock()
