@@ -48,6 +48,7 @@ public:
 	void read(uint64_t index, std::vector<unsigned char>& buf, size_t page_count = 1);
 	void write(uint64_t index, const std::vector<unsigned char>& buf, size_t page_count = 1);
 	void stat(struct stat& st);
+	void sync();
 };
 
 class Options {

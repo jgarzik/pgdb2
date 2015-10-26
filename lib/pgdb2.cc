@@ -100,6 +100,13 @@ void File::stat(struct stat& st)
 		throw std::runtime_error("Failed fstat " + filename + ": " + strerror(errno));
 }
 
+void File::sync()
+{
+	int frc = ::fsync(fd);
+	if (frc < 0)
+		throw std::runtime_error("Failed fsync " + filename + ": " + strerror(errno));
+}
+
 DB::DB(std::string filename_, const Options& opt_)
 {
 	running = false;
@@ -194,6 +201,7 @@ void DB::writeSuperblock()
 	memcpy(&page[0], &write_sb, sizeof(write_sb));
 
 	f.write(0, page);
+	f.sync();
 }
 
 DB::~DB()
