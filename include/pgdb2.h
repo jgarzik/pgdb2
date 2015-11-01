@@ -17,12 +17,29 @@ enum sb_features {
 	SBF_MBZ		= (1ULL << 62),		// must be zero
 };
 
+enum various_constants {
+	INT_KEY_MAX	= 511,			// max key size before spill
+};
+
 struct Superblock {
-	unsigned char	magic[8];
-	uint32_t	version;
-	uint32_t	page_size;
-	uint64_t	features;
-	uint64_t	reserved[64 - 3];
+	unsigned char	magic[8];		// file format unique id
+	uint32_t	version;		// db version
+	uint32_t	page_size;		// page size, in bytes
+	uint64_t	features;		// feature bitmask
+	uint64_t	inode_table_ref;	// page w/ list of ino tab pages
+	uint64_t	reserved[64 - 4];
+};
+
+enum ext_flags {
+	EF_MBO		= (1U << 31),		// must be one
+	EF_MBZ		= (1U << 30),		// must be zero
+	EF_HDR		= (1U << 29),		// header record
+};
+
+struct Extent {
+	uint64_t	ext_page;		// extent page start
+	uint32_t	ext_len;		// extent page count
+	uint32_t	ext_flags;		// flags bitmask
 };
 
 class File {
@@ -70,15 +87,22 @@ private:
 	File		f;
 	Superblock	sb;
 
+	std::vector<Extent> inotab_ref;
+
 public:
 	DB(std::string filename_, const Options& opt_);
 	~DB();
 
 private:
 	void open();
+
 	void readSuperblock();
+	void readExtList(std::vector<Extent> &ext_list);
+
 	void writeSuperblock();
-	void initSuperblock();
+	void writeInotabRef();
+
+	void clear();
 
 };
 
