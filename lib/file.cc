@@ -75,7 +75,7 @@ void File::close()
 	fd = -1;
 }
 
-void File::read(uint64_t index, std::vector<unsigned char>& buf,
+void File::read(std::vector<unsigned char>& buf, uint64_t index,
 		size_t page_count)
 {
 	off_t lrc = ::lseek(fd, index * page_size, SEEK_SET);
@@ -94,7 +94,7 @@ void File::read(uint64_t index, std::vector<unsigned char>& buf,
 	cur_fpos = lrc + io_size;
 }
 
-void File::write(uint64_t index, const std::vector<unsigned char>& buf,
+void File::write(const std::vector<unsigned char>& buf, uint64_t index,
 		 size_t page_count)
 {
 	off_t lrc = ::lseek(fd, index * page_size, SEEK_SET);

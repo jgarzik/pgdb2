@@ -78,7 +78,7 @@ private:
 
 	void readSuperblock();
 	void readInodeTable();
-	void readExtList(uint64_t ref, std::vector<Extent> &ext_list, uint32_t len = 1);
+	void readExtList(std::vector<Extent> &ext_list, uint64_t ref, uint32_t len = 1);
 
 	void writeSuperblock();
 	void writeInotabRef();

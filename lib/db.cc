@@ -86,7 +86,7 @@ void DB::readSuperblock()
 	}
 
 	std::vector<unsigned char> sb_buf(4096);
-	f.read(0, sb_buf);
+	f.read(sb_buf, 0);
 
 	memcpy(&sb, &sb_buf[0], sizeof(sb));
 
@@ -125,7 +125,7 @@ void DB::writeSuperblock()
 	page.resize(sb.page_size);
 	memcpy(&page[0], &write_sb, sizeof(write_sb));
 
-	f.write(0, page);
+	f.write(page, 0);
 }
 
 void DB::readInodeTable()
@@ -135,16 +135,16 @@ void DB::readInodeTable()
 
 	// magic inode #0 is the inode table itself; handle its
 	// extent list as a special case
-	readExtList(sb.inode_table_ref, inodes[0].ext);
+	readExtList(inodes[0].ext, sb.inode_table_ref);
 }
 
-void DB::readExtList(uint64_t ref, std::vector<Extent> &ext_list, uint32_t len)
+void DB::readExtList(std::vector<Extent> &ext_list, uint64_t ref, uint32_t len)
 {
 	ext_list.clear();
 
 	// input page
 	std::vector<unsigned char> page(sb.page_size);
-	f.read(ref, page, len);
+	f.read(page, ref, len);
 
 	// decode header
 	Extent *in_ext = (Extent *) &page[0];
@@ -209,7 +209,7 @@ void DB::writeInotabRef()
 		out_idx++;
 	}
 
-	f.write(sb.inode_table_ref, page);
+	f.write(page, sb.inode_table_ref);
 }
 
 DB::~DB()
