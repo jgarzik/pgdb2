@@ -33,6 +33,27 @@ void File::open()
 		throw std::runtime_error("Failed open " + filename + ": " + strerror(errno));
 
 	cur_fpos = 0;
+
+	setPageCount();
+}
+
+void File::setPageCount()
+{
+	if (!isOpen())
+		n_pages = 0;
+	else {
+		struct stat st;
+		stat(st);
+
+		n_pages = st.st_size / page_size;
+	}
+}
+
+void File::setPageSize(size_t sz)
+{
+	page_size = sz;
+
+	setPageCount();
 }
 
 void File::open(std::string filename_, int o_flags_, size_t page_size_)
@@ -145,10 +166,7 @@ void DB::readSuperblock()
 {
 	assert(f.isOpen());
 
-	struct stat st;
-	f.stat(st);
-
-	if ((st.st_size == 0) && (options.f_create)) {
+	if ((f.size() == 0) && (options.f_create)) {
 		clear();
 		return;
 	}

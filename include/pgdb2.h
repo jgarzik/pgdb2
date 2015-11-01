@@ -49,6 +49,7 @@ private:
 	std::string filename;
 	size_t page_size;
 	off_t cur_fpos;
+	uint64_t n_pages;
 
 public:
 
@@ -56,16 +57,20 @@ public:
 	File(std::string filename_, int o_flags_ = O_RDONLY, size_t page_size = 4096);
 	~File();
 
-	bool isOpen() { return (fd >= 0); }
-	void setPageSize(size_t sz) { page_size = sz; }
+	bool isOpen() const { return (fd >= 0); }
+	uint64_t size() const { return n_pages; }
+	void setPageSize(size_t sz);
 
 	void open();
 	void open(std::string filename_, int o_flags_ = O_RDONLY, size_t page_size = 4096);
 	void close();
 	void read(uint64_t index, std::vector<unsigned char>& buf, size_t page_count = 1);
 	void write(uint64_t index, const std::vector<unsigned char>& buf, size_t page_count = 1);
-	void stat(struct stat& st);
 	void sync();
+
+private:
+	void setPageCount();
+	void stat(struct stat& st);
 };
 
 class Options {
