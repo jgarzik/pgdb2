@@ -43,6 +43,11 @@ struct Extent {
 	uint32_t	ext_flags;		// flags bitmask
 };
 
+class Inode {
+public:
+	std::vector<Extent> ext;		// extent list
+};
+
 class Options {
 public:
 	bool		f_read;
@@ -62,7 +67,7 @@ private:
 	File		f;
 	Superblock	sb;
 
-	std::vector<Extent> inotab_ref;
+	std::vector<Inode> inodes;
 
 public:
 	DB(std::string filename_, const Options& opt_);
@@ -72,7 +77,8 @@ private:
 	void open();
 
 	void readSuperblock();
-	void readExtList(std::vector<Extent> &ext_list);
+	void readInodeTable();
+	void readExtList(uint64_t ref, std::vector<Extent> &ext_list, uint32_t len = 1);
 
 	void writeSuperblock();
 	void writeInotabRef();
