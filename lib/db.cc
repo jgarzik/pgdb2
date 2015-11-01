@@ -47,6 +47,33 @@ void DB::open()
 	f.open(filename, flags, sizeof(Superblock));
 }
 
+void DB::clear()
+{
+	memset(&sb, 0, sizeof(sb));
+	inotab_ref.clear();
+
+	// init superblock
+	memcpy(sb.magic, SB_MAGIC, sizeof(sb.magic));
+	sb.version = 1;
+	sb.page_size = 4096;
+	sb.features = SBF_MBO;
+	sb.inode_table_ref = 1;
+
+	f.setPageSize(sb.page_size);
+
+	// init inode table reference
+	Extent inoref;
+	inoref.ext_page = 2;			// inode table offset=2
+	inoref.ext_len = 1;			// inode table length=1
+	inoref.ext_flags = EF_MBO;
+	inotab_ref.push_back(inoref);
+
+	// write everything
+	writeSuperblock();
+	writeInotabRef();
+	f.sync();
+}
+
 void DB::readSuperblock()
 {
 	assert(f.isOpen());
@@ -78,33 +105,6 @@ void DB::readSuperblock()
 		throw std::runtime_error("Superblock invalid inode table ref");
 
 	f.setPageSize(sb.page_size);
-}
-
-void DB::clear()
-{
-	memset(&sb, 0, sizeof(sb));
-	inotab_ref.clear();
-
-	// init superblock
-	memcpy(sb.magic, SB_MAGIC, sizeof(sb.magic));
-	sb.version = 1;
-	sb.page_size = 4096;
-	sb.features = SBF_MBO;
-	sb.inode_table_ref = 1;
-
-	f.setPageSize(sb.page_size);
-
-	// init inode table reference
-	Extent inoref;
-	inoref.ext_page = 2;			// inode table offset=2
-	inoref.ext_len = 1;			// inode table length=1
-	inoref.ext_flags = EF_MBO;
-	inotab_ref.push_back(inoref);
-
-	// write everything
-	writeSuperblock();
-	writeInotabRef();
-	f.sync();
 }
 
 void DB::writeSuperblock()
