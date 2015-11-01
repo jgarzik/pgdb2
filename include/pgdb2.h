@@ -49,6 +49,8 @@ struct Extent {
 
 class Inode {
 public:
+	uint64_t	e_ref;			// extent list page
+	uint32_t	e_alloc;		// extent list alloc'd len
 	std::vector<Extent> ext;		// extent list
 };
 
@@ -85,7 +87,8 @@ private:
 	void readExtList(std::vector<Extent> &ext_list, uint64_t ref, uint32_t len = 1);
 
 	void writeSuperblock();
-	void writeInotabRef();
+	void writeExtList(const std::vector<Extent>& ext_list, uint64_t ref, uint32_t max_len = 1);
+	void writeInodeExtList(uint32_t ino);
 
 	void clear();
 

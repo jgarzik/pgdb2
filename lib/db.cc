@@ -68,11 +68,14 @@ void DB::clear()
 	inoref.ext_page = 2;			// inode table offset=2
 	inoref.ext_len = 1;			// inode table length=1
 	inoref.ext_flags = EF_MBO;
-	inodes[0].ext.push_back(inoref);
+
+	inodes[DBINO_TABLE].e_ref = 1;		// inode table elist start
+	inodes[DBINO_TABLE].e_alloc = 1;	// inode table elist len
+	inodes[DBINO_TABLE].ext.push_back(inoref);
 
 	// write everything
 	writeSuperblock();
-	writeInotabRef();
+	writeInodeExtList(DBINO_TABLE);
 	f.sync();
 }
 
@@ -135,7 +138,9 @@ void DB::readInodeTable()
 
 	// magic inode #0 is the inode table itself; handle its
 	// extent list as a special case
-	readExtList(inodes[DBINO_TABLE].ext, sb.inode_table_ref);
+	inodes[DBINO_TABLE].e_ref = sb.inode_table_ref;
+	inodes[DBINO_TABLE].e_alloc = 1;
+	readExtList(inodes[DBINO_TABLE].ext, inodes[DBINO_TABLE].e_ref);
 }
 
 void DB::readExtList(std::vector<Extent> &ext_list, uint64_t ref, uint32_t len)
@@ -182,25 +187,28 @@ void DB::readExtList(std::vector<Extent> &ext_list, uint64_t ref, uint32_t len)
 	}
 }
 
-void DB::writeInotabRef()
+void DB::writeExtList(const std::vector<Extent>& ext_list,
+		      uint64_t ref, uint32_t max_len)
 {
-	const std::vector<Extent>& inotab_ref = inodes[DBINO_TABLE].ext;
-	assert((inotab_ref.size() * sizeof(Extent)) <= sb.page_size);
+	assert(((ext_list.size() + 1) * sizeof(Extent)) <= (max_len * sb.page_size));
 
-	std::vector<unsigned char> page;
-	page.resize(sb.page_size);
+	std::vector<unsigned char> pages;
+	pages.resize(sb.page_size * max_len);
 
-	Extent *out_ext = (Extent *) &page[0];
+	Extent *out_ext = (Extent *) &pages[0];
 
 	// encode header
 	out_ext[0].ext_page = htole64(0);
-	out_ext[0].ext_len = htole32(inotab_ref.size() + 1);
+	out_ext[0].ext_len = htole32(ext_list.size() + 1);
 	out_ext[0].ext_flags = htole32(EF_MBO | EF_HDR);
 
 	// encode list
 	unsigned int out_idx = 1;
-	for (unsigned int i = 0; i < inotab_ref.size(); i++) {
-		const Extent& in_ext = inotab_ref[i];
+	for (unsigned int i = 0; i < ext_list.size(); i++) {
+		const Extent& in_ext = ext_list[i];
+
+		if (((out_idx+1) * sizeof(Extent)) > pages.size())
+			throw std::runtime_error("Extent list exceeds max");
 
 		out_ext[out_idx].ext_page = htole64(in_ext.ext_page);
 		out_ext[out_idx].ext_len = htole32(in_ext.ext_len);
@@ -209,7 +217,13 @@ void DB::writeInotabRef()
 		out_idx++;
 	}
 
-	f.write(page, sb.inode_table_ref);
+	f.write(pages, ref, max_len);
+}
+
+void DB::writeInodeExtList(uint32_t ino)
+{
+	const std::vector<Extent>& ext_list = inodes[ino].ext;
+	writeExtList(ext_list, inodes[ino].e_ref, inodes[ino].e_alloc);
 }
 
 DB::~DB()
