@@ -18,7 +18,7 @@ AC_INIT([pgdb2], [0.0.1],
         [http://github.com/jgarzik/pgdb2/])
 
 AC_PREREQ(2.60)
-AC_CONFIG_SRCDIR([lib/pgdb2.cc])
+AC_CONFIG_SRCDIR([lib/db.cc])
 AM_INIT_AUTOMAKE([gnu])
 AC_CONFIG_HEADERS([pgdb2-config.h])
 
