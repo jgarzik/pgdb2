@@ -11,6 +11,10 @@
 
 namespace pagedb {
 
+enum inode_constants {
+	DBINO_TABLE	= 0,			// inode table
+};
+
 #define SB_MAGIC "PGDB0000"
 
 enum sb_features {

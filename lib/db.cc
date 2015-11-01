@@ -135,7 +135,7 @@ void DB::readInodeTable()
 
 	// magic inode #0 is the inode table itself; handle its
 	// extent list as a special case
-	readExtList(inodes[0].ext, sb.inode_table_ref);
+	readExtList(inodes[DBINO_TABLE].ext, sb.inode_table_ref);
 }
 
 void DB::readExtList(std::vector<Extent> &ext_list, uint64_t ref, uint32_t len)
@@ -184,7 +184,7 @@ void DB::readExtList(std::vector<Extent> &ext_list, uint64_t ref, uint32_t len)
 
 void DB::writeInotabRef()
 {
-	const std::vector<Extent>& inotab_ref = inodes[0].ext;
+	const std::vector<Extent>& inotab_ref = inodes[DBINO_TABLE].ext;
 	assert((inotab_ref.size() * sizeof(Extent)) <= sb.page_size);
 
 	std::vector<unsigned char> page;
