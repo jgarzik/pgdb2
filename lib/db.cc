@@ -154,8 +154,7 @@ void DB::writeSuperblock()
 	Superblock write_sb(sb);
 	write_sb.swap_h2n();
 
-	std::vector<unsigned char> page;
-	page.resize(sb.page_size);
+	std::vector<unsigned char> page(sb.page_size);
 	memcpy(&page[0], &write_sb, sizeof(write_sb));
 
 	f.write(page, 0);
@@ -370,8 +369,7 @@ void DB::writeExtList(const std::vector<Extent>& ext_list,
 {
 	assert(((ext_list.size() + 1) * sizeof(Extent)) <= (max_len * sb.page_size));
 
-	std::vector<unsigned char> pages;
-	pages.resize(sb.page_size * max_len);
+	std::vector<unsigned char> pages(sb.page_size * max_len);
 
 	Extent *out_ext = (Extent *) &pages[0];
 
