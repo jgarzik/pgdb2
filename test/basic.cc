@@ -2,6 +2,7 @@
 #include <pgdb2.h>
 #include <stdexcept>
 #include <assert.h>
+#include <iostream>
 
 int main (int argc, char *argv[])
 {
@@ -31,6 +32,10 @@ int main (int argc, char *argv[])
 	try {
 		pagedb::DB db("foo.db", opts);
 	}
+	catch (const std::runtime_error& error) {
+		std::cerr << error.what() << "\n";
+		assert(0);
+	}
 	catch (...) {
 		assert(0);
 	}
@@ -43,6 +48,10 @@ int main (int argc, char *argv[])
 	try {
 		pagedb::DB db("foo.db", opts);
 	}
+	catch (const std::runtime_error& error) {
+		std::cerr << error.what() << "\n";
+		assert(0);
+	}
 	catch (...) {
 		assert(0);
 	}
@@ -54,6 +63,10 @@ int main (int argc, char *argv[])
 
 	try {
 		pagedb::DB db("foo.db", opts);
+	}
+	catch (const std::runtime_error& error) {
+		std::cerr << error.what() << "\n";
+		assert(0);
 	}
 	catch (...) {
 		assert(0);
