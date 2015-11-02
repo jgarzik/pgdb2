@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string>
+#include <stdexcept>
 #include <vector>
 #include <stdint.h>
 #include <fcntl.h>
@@ -265,6 +266,25 @@ public:
 	void write(File& f, const std::vector<unsigned char>& pagebuf) const;
 };
 
+class InodeTable {
+private:
+	std::vector<Inode> inodes;
+
+public:
+	size_t size() const { return inodes.size(); }
+
+	const Inode& getIdx(uint32_t idx) {
+		if (idx >= inodes.size())
+			throw std::runtime_error("InodeTable idx out of range");
+		return inodes[idx];
+	}
+
+	void clear() { inodes.clear(); }
+	void reserve(size_t n) { inodes.reserve(n); }
+	void push_back(const Inode& ino) { inodes.push_back(ino); }
+	void encode(std::vector<unsigned char>& inotab_buf);
+};
+
 class Options {
 public:
 	bool		f_read;
@@ -283,9 +303,8 @@ private:
 
 	File		f;
 	Superblock	sb;
+	InodeTable	inotab;
 	Dir		rootDir;
-
-	std::vector<Inode> inodes;
 
 public:
 	DB(std::string filename_, const Options& opt_);
@@ -302,7 +321,6 @@ private:
 	void writeSuperblock();
 	void writeInodeTable();
 	void writeDir(uint32_t ino_idx, const Dir& d);
-	void encodeInodeTable(std::vector<unsigned char>& buf);
 	void writeExtList(const std::vector<Extent>& ext_list, uint64_t ref, uint32_t max_len = 1);
 
 	void clear();

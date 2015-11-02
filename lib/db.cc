@@ -278,7 +278,7 @@ void DB::open()
 void DB::clear()
 {
 	memset(&sb, 0, sizeof(sb));
-	inodes.clear();
+	inotab.clear();
 
 	// init superblock
 	memcpy(sb.magic, SB_MAGIC, sizeof(sb.magic));
@@ -290,8 +290,8 @@ void DB::clear()
 	f.setPageSize(sb.page_size);
 
 	// init inode table
-	inodes.clear();
-	inodes.reserve(16);
+	inotab.clear();
+	inotab.reserve(16);
 
 	// DBINO_TABLE(0): inode table
 	Inode tab_ino;
@@ -304,8 +304,8 @@ void DB::clear()
 	inoref.ext_flags = EF_MBO;
 	tab_ino.ext.push_back(inoref);
 
-	inodes.push_back(tab_ino);
-	assert(inodes[DBINO_TABLE].size() == 1);
+	inotab.push_back(tab_ino);
+	assert(inotab.getIdx(DBINO_TABLE).size() == 1);
 
 	// DBINO_FREELIST(1): list of free extents (empty)
 	Inode freelist_ino;
@@ -313,8 +313,8 @@ void DB::clear()
 	freelist_ino.e_alloc = 0;
 	freelist_ino.ext.clear();
 
-	inodes.push_back(freelist_ino);
-	assert(inodes[DBINO_FREELIST].size() == 0);
+	inotab.push_back(freelist_ino);
+	assert(inotab.getIdx(DBINO_FREELIST).size() == 0);
 
 	// DBINO_ROOT_DIR(2): root directory
 	Inode root_ino;
@@ -327,7 +327,7 @@ void DB::clear()
 	root_ref.ext_flags = EF_MBO;
 	root_ino.ext.push_back(root_ref);
 
-	inodes.push_back(root_ino);
+	inotab.push_back(root_ino);
 
 	// write everything
 	writeSuperblock();
@@ -375,8 +375,8 @@ void DB::writeSuperblock()
 
 void DB::readInodeTable()
 {
-	inodes.clear();
-	inodes.reserve(16);
+	inotab.clear();
+	inotab.reserve(16);
 
 	// magic inode #0 is the inode table itself; handle its
 	// extent list as a special case
@@ -384,7 +384,7 @@ void DB::readInodeTable()
 	tab_ino.e_ref = sb.inode_table_ref;
 	tab_ino.e_alloc = 1;
 	readExtList(tab_ino.ext, tab_ino.e_ref);
-	inodes.push_back(tab_ino);
+	inotab.push_back(tab_ino);
 
 	// read inode table buffer from storage
 	uint32_t inotab_pages = tab_ino.size();
@@ -462,14 +462,14 @@ void DB::readInodeTable()
 		}
 
 		// add to inode table in memory
-		inodes.push_back(ino);
+		inotab.push_back(ino);
 	}
 
-	if (inodes.size() < (DBINO__LAST+1))
+	if (inotab.size() < (DBINO__LAST+1))
 		throw std::runtime_error("Inode table truncated");
 }
 
-void DB::encodeInodeTable(std::vector<unsigned char>& inotab_buf)
+void InodeTable::encode(std::vector<unsigned char>& inotab_buf)
 {
 	assert(inodes.size() > 0);
 
@@ -528,10 +528,10 @@ void DB::encodeInodeTable(std::vector<unsigned char>& inotab_buf)
 void DB::writeInodeTable()
 {
 	std::vector<unsigned char> inotab_buf;
-	encodeInodeTable(inotab_buf);
+	inotab.encode(inotab_buf);
 
 	// special case: inode table's own extent list
-	const Inode& tab_ino = inodes[DBINO_TABLE];
+	const Inode& tab_ino = inotab.getIdx(DBINO_TABLE);
 	assert(tab_ino.e_ref == sb.inode_table_ref);
 	assert(tab_ino.e_alloc == 1);
 	assert((tab_ino.size() * sb.page_size) >= inotab_buf.size());
@@ -547,8 +547,8 @@ void DB::readDir(uint32_t ino_idx, Dir& d)
 	d.clear();
 
 	// lookup inode
-	assert(ino_idx < inodes.size());
-	const Inode& dir_ino = inodes[ino_idx];
+	assert(ino_idx < inotab.size());
+	const Inode& dir_ino = inotab.getIdx(ino_idx);
 	uint32_t n_pages = dir_ino.size();
 
 	// read from storage into buffer
@@ -565,8 +565,8 @@ void DB::writeDir(uint32_t ino_idx, const Dir& d)
 	d.encode(buf);
 
 	// lookup inode
-	assert(ino_idx < inodes.size());
-	const Inode& dir_ino = inodes[ino_idx];
+	assert(ino_idx < inotab.size());
+	const Inode& dir_ino = inotab.getIdx(ino_idx);
 	assert((dir_ino.size() * sb.page_size) >= buf.size());
 
 	// write root directory to storage
