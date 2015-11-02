@@ -1,5 +1,11 @@
 #ifndef __PGDB2_H__
 #define __PGDB2_H__
+/* Copyright 2015 Bloq Inc.
+ * Distributed under the MIT/X11 software license, see the accompanying
+ * file COPYING or http://www.opensource.org/licenses/mit-license.php.
+ */
+
+#include "pgdb2-config.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
