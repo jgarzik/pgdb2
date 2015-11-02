@@ -135,6 +135,8 @@ void DB::clear()
 	// write everything
 	writeSuperblock();
 	writeInodeTable();
+	// writeFreeList(); -- none to write
+
 	f.sync();
 }
 
