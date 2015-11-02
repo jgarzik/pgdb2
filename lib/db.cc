@@ -12,6 +12,51 @@
 
 namespace pagedb {
 
+void Inode::read(File& f, std::vector<unsigned char>& pagebuf)
+{
+	size_t pgsz = f.pageSize();
+	uint32_t n_pages = size();
+
+	assert(pagebuf.size() >= (pgsz * n_pages));
+
+	size_t ofs = 0;
+
+	for (std::vector<Extent>::const_iterator it = ext.begin();
+	     it != ext.end(); it++) {
+		const Extent& e = (*it);
+		std::vector<unsigned char> tmpbuf(pgsz * e.ext_len);
+
+		f.read(tmpbuf, e.ext_page, e.ext_len);
+
+		assert(pagebuf.size() >= ((ofs * pgsz) + tmpbuf.size()));
+		memcpy(&pagebuf[ofs * pgsz], &tmpbuf[0], tmpbuf.size());
+
+		ofs += e.ext_len;
+	}
+}
+
+void Inode::write(File& f, const std::vector<unsigned char>& pagebuf) const
+{
+	size_t pgsz = f.pageSize();
+	uint32_t n_pages = size();
+
+	assert(pagebuf.size() <= (pgsz * n_pages));
+
+	size_t ofs = 0;
+
+	for (std::vector<Extent>::const_iterator it = ext.begin();
+	     it != ext.end(); it++) {
+		const Extent& e = (*it);
+		size_t byte_ofs = ofs * pgsz;
+		std::vector<unsigned char> tmpbuf(pagebuf.begin() + byte_ofs,
+						  pagebuf.begin() + byte_ofs + (e.ext_len * pgsz));
+
+		f.write(tmpbuf, e.ext_page, e.ext_len);
+
+		ofs += e.ext_len;
+	}
+}
+
 DB::DB(std::string filename_, const Options& opt_)
 {
 	running = false;
@@ -76,7 +121,7 @@ void DB::clear()
 
 	// write everything
 	writeSuperblock();
-	writeInodeExtList(DBINO_TABLE);
+	writeInodeTable();
 	f.sync();
 }
 
@@ -121,13 +166,166 @@ void DB::writeSuperblock()
 void DB::readInodeTable()
 {
 	inodes.clear();
-	inodes.resize(1);
 
 	// magic inode #0 is the inode table itself; handle its
 	// extent list as a special case
-	inodes[DBINO_TABLE].e_ref = sb.inode_table_ref;
-	inodes[DBINO_TABLE].e_alloc = 1;
-	readExtList(inodes[DBINO_TABLE].ext, inodes[DBINO_TABLE].e_ref);
+	Inode tab_ino;
+	tab_ino.e_ref = sb.inode_table_ref;
+	tab_ino.e_alloc = 1;
+	readExtList(tab_ino.ext, tab_ino.e_ref);
+	inodes.push_back(tab_ino);
+
+	// read inode table buffer from storage
+	uint32_t inotab_pages = tab_ino.size();
+	std::vector<unsigned char> inotab_buf(inotab_pages * sb.page_size);
+	tab_ino.read(f, inotab_buf);
+
+	// initialize buffer walk
+	unsigned char *p = &inotab_buf[0];
+	uint32_t bytes = inotab_buf.size();
+
+	// inode table header
+	if (bytes < sizeof(InodeTableHdr))
+		throw std::runtime_error("inode table hdr short read");
+
+	InodeTableHdr* ith = (InodeTableHdr *) p;
+	p += sizeof(InodeTableHdr);
+	bytes -= sizeof(InodeTableHdr);
+
+	ith->swap_n2h();
+
+	if (!ith->valid())
+		throw std::runtime_error("Inode table invalid header");
+	if (inotab_buf.size() < (ith->it_len * (sizeof(InodeTableHdr)+sizeof(Extent)))) //rough
+		throw std::runtime_error("Inode table invalid length");
+
+	// walk inode table entries
+	for (unsigned int idx = 0; (bytes > 0) && (idx < ith->it_len); idx++) {
+
+		// Decode inode table entry header
+		if (bytes < sizeof(InodeTableHdr))
+			throw std::runtime_error("inode table ent short read");
+
+		InodeTableHdr* hdr = (InodeTableHdr *) p;
+		p += sizeof(InodeTableHdr);
+		bytes -= sizeof(InodeTableHdr);
+
+		hdr->swap_n2h();
+		if (!hdr->valid())
+			throw std::runtime_error("Inode table ent invalid");
+
+		// Decode inode table extent data
+		if (bytes < sizeof(Extent))
+			throw std::runtime_error("inode table ent ext short read");
+
+		Extent* e = (Extent *) p;
+		p += sizeof(Extent);
+		bytes -= sizeof(Extent);
+
+		e->swap_n2h();
+
+		bool ext_empty = false;
+		if (e->isNull())
+			ext_empty = true;
+		else if (!e->valid())
+			throw std::runtime_error("Inode table ext invalid");
+
+		Inode ino;
+
+		// empty (null) extent
+		if (ext_empty) {
+			ino.e_ref = 0;
+			ino.e_alloc = 0;
+
+		// internal extent
+		} else if (hdr->it_flags & ITF_EXT_INT) {
+			ino.e_ref = 0;
+			ino.e_alloc = 0;
+			ino.ext.push_back(*e);
+
+		// external extent, read from storage
+		} else {
+			ino.e_ref = e->ext_page;
+			ino.e_alloc = e->ext_len;
+			readExtList(ino.ext, ino.e_ref, ino.e_alloc);
+		}
+
+		// add to inode table in memory
+		inodes.push_back(ino);
+	}
+}
+
+void DB::encodeInodeTable(std::vector<unsigned char>& inotab_buf)
+{
+	assert(inodes.size() > 0);
+
+	inotab_buf.clear();
+	inotab_buf.reserve(inodes.size() * (sizeof(InodeTableHdr)+sizeof(Extent)));
+
+	InodeTableHdr ith;
+	memcpy(ith.magic, INOTAB_MAGIC, sizeof(ith.magic));
+	ith.it_len = inodes.size() - 1;
+	ith.it_flags = ITF_MBO | ITF_HDR;
+	ith.swap_h2n();
+
+	unsigned char *p = (unsigned char *) &ith;
+	inotab_buf.insert(inotab_buf.end(), p, p + sizeof(ith));
+
+	for (unsigned int idx = 0; idx < inodes.size(); idx++) {
+		// skip; special case: ext list written manually
+		if (idx == DBINO_TABLE)
+			continue;
+
+		const Inode& ino = inodes[idx];
+		bool int_list = (ino.e_ref == 0);
+		assert((!int_list) || (int_list && (ino.ext.size() <= 1)));
+
+		// encode inode table header
+		InodeTableHdr hdr;
+		memcpy(hdr.magic, INOTABENT_MAGIC, sizeof(hdr.magic));
+		hdr.it_len = 0;
+		hdr.it_flags = ITF_MBO | (int_list ? ITF_EXT_INT : 0);
+		hdr.swap_h2n();
+
+		p = (unsigned char *) &hdr;
+		inotab_buf.insert(inotab_buf.end(), p, p + sizeof(hdr));
+
+		Extent e;
+		if (int_list) {
+			if (ino.ext.size() > 0)
+				e = ino.ext[0];
+			else {
+				e.ext_page = 0;
+				e.ext_len = 0;
+				e.ext_flags = EF_MBO;
+			}
+		} else {
+			e.ext_page = ino.e_ref;
+			e.ext_len = ino.e_alloc;
+			e.ext_flags = EF_MBO;
+		}
+		e.swap_h2n();
+
+		p = (unsigned char *) &e;
+		inotab_buf.insert(inotab_buf.end(), p, p + sizeof(e));
+	}
+}
+
+void DB::writeInodeTable()
+{
+	std::vector<unsigned char> inotab_buf;
+	encodeInodeTable(inotab_buf);
+
+	// special case: inode table's own extent list
+	const Inode& tab_ino = inodes[DBINO_TABLE];
+	assert(tab_ino.e_ref == sb.inode_table_ref);
+	assert(tab_ino.e_alloc == 1);
+	assert((tab_ino.size() * sb.page_size) >= inotab_buf.size());
+
+	writeExtList(tab_ino.ext, tab_ino.e_ref);
+
+	// inode table encoded data
+	tab_ino.write(f, inotab_buf);
 }
 
 void DB::readExtList(std::vector<Extent> &ext_list, uint64_t ref, uint32_t len)
@@ -200,12 +398,6 @@ void DB::writeExtList(const std::vector<Extent>& ext_list,
 	}
 
 	f.write(pages, ref, max_len);
-}
-
-void DB::writeInodeExtList(uint32_t ino)
-{
-	const std::vector<Extent>& ext_list = inodes[ino].ext;
-	writeExtList(ext_list, inodes[ino].e_ref, inodes[ino].e_alloc);
 }
 
 DB::~DB()

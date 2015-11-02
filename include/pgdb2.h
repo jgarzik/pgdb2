@@ -50,7 +50,7 @@ struct Superblock {
 		features = htole64(features);
 		inode_table_ref = htole64(inode_table_ref);
 	}
-	bool valid() {
+	bool valid() const {
 		if ((version < 1) ||
 		    (page_size < 512) || (page_size > 65536) ||
 		    ((!(features & SBF_MBO)) || (features & SBF_MBZ)) ||
@@ -85,7 +85,7 @@ struct Extent {
 		ext_len = htole32(ext_len);
 		ext_flags = htole32(ext_flags);
 	}
-	bool valid() {
+	bool valid() const {
 		if ((ext_page == 0) ||
 		    (ext_len == 0) ||
 		    (!(ext_flags & EF_MBO)) ||
@@ -93,6 +93,9 @@ struct Extent {
 			return false;
 
 		return true;
+	}
+	bool isNull() const {
+		return (!ext_page && !ext_len && (ext_flags == EF_MBO));
 	}
 };
 
@@ -116,8 +119,8 @@ struct InodeTableHdr {
 		it_len = htole32(it_len);
 		it_flags = htole32(it_flags);
 	}
-	bool valid() {
-		if ((it_len == 0) ||
+	bool valid() const {
+		if ( /* (it_len == 0) || */
 		    (!(it_flags & ITF_MBO)) ||
 		    (it_flags & ITF_MBZ))
 			return false;
@@ -148,6 +151,9 @@ public:
 
 		return total;
 	}
+
+	void read(File& f, std::vector<unsigned char>& pagebuf);
+	void write(File& f, const std::vector<unsigned char>& pagebuf) const;
 };
 
 class Options {
@@ -183,8 +189,9 @@ private:
 	void readExtList(std::vector<Extent> &ext_list, uint64_t ref, uint32_t len = 1);
 
 	void writeSuperblock();
+	void writeInodeTable();
+	void encodeInodeTable(std::vector<unsigned char>& buf);
 	void writeExtList(const std::vector<Extent>& ext_list, uint64_t ref, uint32_t max_len = 1);
-	void writeInodeExtList(uint32_t ino);
 
 	void clear();
 
