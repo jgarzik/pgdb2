@@ -106,18 +106,31 @@ void DB::clear()
 	f.setPageSize(sb.page_size);
 
 	// init inode table
-	inodes.resize(1);
+	inodes.clear();
+	inodes.reserve(16);
 
+	// DBINO_TABLE(0): inode table
 	Extent inoref;
-	inoref.ext_page = 2;			// inode table offset=2
-	inoref.ext_len = 1;			// inode table length=1
+	inoref.ext_page = 2;		// inode table offset=2
+	inoref.ext_len = 1;		// inode table length=1
 	inoref.ext_flags = EF_MBO;
 
-	inodes[DBINO_TABLE].e_ref = 1;		// inode table elist start
-	inodes[DBINO_TABLE].e_alloc = 1;	// inode table elist len
-	inodes[DBINO_TABLE].ext.push_back(inoref);
+	Inode tab_ino;
+	tab_ino.e_ref = 1;		// inode table elist start
+	tab_ino.e_alloc = 1;		// inode table elist len
+	tab_ino.ext.push_back(inoref);
 
+	inodes.push_back(tab_ino);
 	assert(inodes[DBINO_TABLE].size() == 1);
+
+	// DBINO_FREELIST(1): list of free extents (empty)
+	Inode freelist_ino;
+	freelist_ino.e_ref = 0;
+	freelist_ino.e_alloc = 0;
+	freelist_ino.ext.clear();
+
+	inodes.push_back(freelist_ino);
+	assert(inodes[DBINO_FREELIST].size() == 0);
 
 	// write everything
 	writeSuperblock();
@@ -163,6 +176,7 @@ void DB::writeSuperblock()
 void DB::readInodeTable()
 {
 	inodes.clear();
+	inodes.reserve(16);
 
 	// magic inode #0 is the inode table itself; handle its
 	// extent list as a special case
@@ -250,6 +264,9 @@ void DB::readInodeTable()
 		// add to inode table in memory
 		inodes.push_back(ino);
 	}
+
+	if (inodes.size() < (DBINO__LAST+1))
+		throw std::runtime_error("Inode table truncated");
 }
 
 void DB::encodeInodeTable(std::vector<unsigned char>& inotab_buf)

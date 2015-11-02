@@ -14,6 +14,9 @@ namespace pagedb {
 
 enum inode_constants {
 	DBINO_TABLE	= 0,			// inode table
+	DBINO_FREELIST	= 1,			// list of free extents
+
+	DBINO__LAST = DBINO_FREELIST
 };
 
 #define SB_MAGIC "PGDB0000"
