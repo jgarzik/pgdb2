@@ -151,9 +151,7 @@ void DB::writeSuperblock()
 {
 	assert(f.isOpen());
 
-	Superblock write_sb;
-	memcpy(&write_sb, &sb, sizeof(sb));
-
+	Superblock write_sb(sb);
 	write_sb.swap_h2n();
 
 	std::vector<unsigned char> page;
@@ -391,7 +389,7 @@ void DB::writeExtList(const std::vector<Extent>& ext_list,
 		if (((out_idx+1) * sizeof(Extent)) > pages.size())
 			throw std::runtime_error("Extent list exceeds max");
 
-		memcpy(&out_ext[out_idx], &in_ext, sizeof(in_ext));
+		out_ext[out_idx] = in_ext;
 		out_ext[out_idx].swap_h2n();
 
 		out_idx++;

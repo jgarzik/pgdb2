@@ -6,7 +6,6 @@
 #include <string>
 #include <vector>
 #include <stdint.h>
-#include <string.h>
 #include <fcntl.h>
 #include "endian_compat.h"
 #include "pgdb2-file.h"
@@ -57,7 +56,7 @@ struct Superblock {
 		    (inode_table_ref < 1))
 			return false;
 
-		if (memcmp(magic, SB_MAGIC, sizeof(magic)))
+		if (std::string((const char *)magic, sizeof(magic)) != SB_MAGIC)
 			return false;
 
 		return true;
@@ -126,10 +125,10 @@ struct InodeTableHdr {
 			return false;
 
 		if (it_flags & ITF_HDR) {
-			if (memcmp(magic, INOTAB_MAGIC, sizeof(magic)))
+			if (std::string((const char *)magic, sizeof(magic)) != INOTAB_MAGIC)
 				return false;
 		} else {
-			if (memcmp(magic, INOTABENT_MAGIC, sizeof(magic)))
+			if (std::string((const char *)magic, sizeof(magic)) != INOTABENT_MAGIC)
 				return false;
 		}
 
