@@ -111,6 +111,9 @@ void File::write(const std::vector<unsigned char>& buf, uint64_t index,
 		throw std::runtime_error("Short write");
 
 	cur_fpos = lrc + io_size;
+
+	if ((index + page_count) > n_pages)
+		n_pages = index + page_count;
 }
 
 void File::stat(struct stat& st)
