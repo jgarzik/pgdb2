@@ -6,7 +6,9 @@
 #include <string>
 #include <vector>
 #include <stdint.h>
+#include <string.h>
 #include <fcntl.h>
+#include "endian_compat.h"
 #include "pgdb2-file.h"
 
 namespace pagedb {
@@ -16,6 +18,8 @@ enum inode_constants {
 };
 
 #define SB_MAGIC "PGDB0000"
+#define INOTAB_MAGIC "PGIT0000"
+#define INOTABENT_MAGIC "PGIE0000"
 
 enum sb_features {
 	SBF_MBO		= (1ULL << 63),		// must be one
@@ -33,6 +37,31 @@ struct Superblock {
 	uint64_t	features;		// feature bitmask
 	uint64_t	inode_table_ref;	// page w/ list of ino tab pages
 	uint64_t	reserved[64 - 4];
+
+	void swap_n2h() {
+		version = le32toh(version);
+		page_size = le32toh(page_size);
+		features = le64toh(features);
+		inode_table_ref = le64toh(inode_table_ref);
+	}
+	void swap_h2n() {
+		version = htole32(version);
+		page_size = htole32(page_size);
+		features = htole64(features);
+		inode_table_ref = htole64(inode_table_ref);
+	}
+	bool valid() {
+		if ((version < 1) ||
+		    (page_size < 512) || (page_size > 65536) ||
+		    ((!(features & SBF_MBO)) || (features & SBF_MBZ)) ||
+		    (inode_table_ref < 1))
+			return false;
+
+		if (memcmp(magic, SB_MAGIC, sizeof(magic)))
+			return false;
+
+		return true;
+	}
 };
 
 enum ext_flags {
@@ -45,6 +74,64 @@ struct Extent {
 	uint64_t	ext_page;		// extent page start
 	uint32_t	ext_len;		// extent page count
 	uint32_t	ext_flags;		// flags bitmask
+
+	void swap_n2h() {
+		ext_page = le64toh(ext_page);
+		ext_len = le32toh(ext_len);
+		ext_flags = le32toh(ext_flags);
+	}
+	void swap_h2n() {
+		ext_page = htole64(ext_page);
+		ext_len = htole32(ext_len);
+		ext_flags = htole32(ext_flags);
+	}
+	bool valid() {
+		if ((ext_page == 0) ||
+		    (ext_len == 0) ||
+		    (!(ext_flags & EF_MBO)) ||
+		    (ext_flags & EF_MBZ))
+			return false;
+
+		return true;
+	}
+};
+
+enum inodetable_flags {
+	ITF_MBO		= (1U << 31),		// must be one
+	ITF_MBZ		= (1U << 30),		// must be zero
+	ITF_HDR		= (1U << 29),		// hdr rec
+	ITF_EXT_INT	= (1U << 28),		// ext list in inode table
+};
+
+struct InodeTableHdr {
+	unsigned char	magic[8];		// record unique id
+	uint32_t	it_len;			// number of entries in table
+	uint32_t	it_flags;		// flags bitmask
+
+	void swap_n2h() {
+		it_len = le32toh(it_len);
+		it_flags = le32toh(it_flags);
+	}
+	void swap_h2n() {
+		it_len = htole32(it_len);
+		it_flags = htole32(it_flags);
+	}
+	bool valid() {
+		if ((it_len == 0) ||
+		    (!(it_flags & ITF_MBO)) ||
+		    (it_flags & ITF_MBZ))
+			return false;
+
+		if (it_flags & ITF_HDR) {
+			if (memcmp(magic, INOTAB_MAGIC, sizeof(magic)))
+				return false;
+		} else {
+			if (memcmp(magic, INOTABENT_MAGIC, sizeof(magic)))
+				return false;
+		}
+
+		return true;
+	}
 };
 
 class Inode {
@@ -52,6 +139,15 @@ public:
 	uint64_t	e_ref;			// extent list page
 	uint32_t	e_alloc;		// extent list alloc'd len
 	std::vector<Extent> ext;		// extent list
+
+	uint32_t size() const {
+		uint32_t total = 0;
+		for (std::vector<Extent>::const_iterator it = ext.begin();
+		     it != ext.end(); it++)
+			total += (*it).ext_len;
+
+		return total;
+	}
 };
 
 class Options {

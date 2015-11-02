@@ -9,7 +9,6 @@
 #include <vector>
 #include <assert.h>
 #include <pgdb2.h>
-#include <endian_compat.h>
 
 namespace pagedb {
 
@@ -73,6 +72,8 @@ void DB::clear()
 	inodes[DBINO_TABLE].e_alloc = 1;	// inode table elist len
 	inodes[DBINO_TABLE].ext.push_back(inoref);
 
+	assert(inodes[DBINO_TABLE].size() == 1);
+
 	// write everything
 	writeSuperblock();
 	writeInodeExtList(DBINO_TABLE);
@@ -93,21 +94,10 @@ void DB::readSuperblock()
 
 	memcpy(&sb, &sb_buf[0], sizeof(sb));
 
-	sb.version = le32toh(sb.version);
-	sb.page_size = le32toh(sb.page_size);
-	sb.features = le64toh(sb.features);
-	sb.inode_table_ref = le64toh(sb.inode_table_ref);
+	sb.swap_n2h();
 
-	if (memcmp(sb.magic, SB_MAGIC, sizeof(sb.magic)))
-		throw std::runtime_error("Superblock invalid magic");
-	if (sb.version < 1)
-		throw std::runtime_error("Superblock invalid version");
-	if (sb.page_size < 512 || sb.page_size > 65536)
-		throw std::runtime_error("Superblock invalid page size");
-	if ((!(sb.features & SBF_MBO)) || (sb.features & SBF_MBZ))
-		throw std::runtime_error("Superblock invalid features");
-	if (sb.inode_table_ref < 1)
-		throw std::runtime_error("Superblock invalid inode table ref");
+	if (!sb.valid())
+		throw std::runtime_error("Superblock invalid");
 
 	f.setPageSize(sb.page_size);
 }
@@ -119,10 +109,7 @@ void DB::writeSuperblock()
 	Superblock write_sb;
 	memcpy(&write_sb, &sb, sizeof(sb));
 
-	write_sb.version = htole32(write_sb.version);
-	write_sb.page_size = htole32(write_sb.page_size);
-	write_sb.features = htole64(write_sb.features);
-	write_sb.inode_table_ref = htole64(write_sb.inode_table_ref);
+	write_sb.swap_h2n();
 
 	std::vector<unsigned char> page;
 	page.resize(sb.page_size);
@@ -152,12 +139,10 @@ void DB::readExtList(std::vector<Extent> &ext_list, uint64_t ref, uint32_t len)
 	f.read(page, ref, len);
 
 	// decode header
-	Extent *in_ext = (Extent *) &page[0];
+	const Extent *in_ext = (Extent *) &page[0];
 
-	Extent hdr;
-	hdr.ext_page = le64toh(in_ext[0].ext_page);
-	hdr.ext_len = le32toh(in_ext[0].ext_len);
-	hdr.ext_flags = le32toh(in_ext[0].ext_flags);
+	Extent hdr(in_ext[0]);
+	hdr.swap_n2h();
 
 	// check header
 	if (hdr.ext_page != 0)
@@ -171,11 +156,8 @@ void DB::readExtList(std::vector<Extent> &ext_list, uint64_t ref, uint32_t len)
 
 	// decode extent list
 	for (unsigned int i = 1; i < hdr.ext_len; i++) {
-		Extent e;
-
-		e.ext_page = le64toh(in_ext[i].ext_page);
-		e.ext_len = le32toh(in_ext[i].ext_len);
-		e.ext_flags = le32toh(in_ext[i].ext_flags);
+		Extent e(in_ext[i]);
+		e.swap_n2h();
 
 		if (e.ext_page == 0)
 			throw std::runtime_error("Extent list invalid page");
@@ -198,9 +180,10 @@ void DB::writeExtList(const std::vector<Extent>& ext_list,
 	Extent *out_ext = (Extent *) &pages[0];
 
 	// encode header
-	out_ext[0].ext_page = htole64(0);
-	out_ext[0].ext_len = htole32(ext_list.size() + 1);
-	out_ext[0].ext_flags = htole32(EF_MBO | EF_HDR);
+	out_ext[0].ext_page = 0;
+	out_ext[0].ext_len = ext_list.size() + 1;
+	out_ext[0].ext_flags = EF_MBO | EF_HDR;
+	out_ext[0].swap_h2n();
 
 	// encode list
 	unsigned int out_idx = 1;
@@ -210,9 +193,8 @@ void DB::writeExtList(const std::vector<Extent>& ext_list,
 		if (((out_idx+1) * sizeof(Extent)) > pages.size())
 			throw std::runtime_error("Extent list exceeds max");
 
-		out_ext[out_idx].ext_page = htole64(in_ext.ext_page);
-		out_ext[out_idx].ext_len = htole32(in_ext.ext_len);
-		out_ext[out_idx].ext_flags = htole32(in_ext.ext_flags);
+		memcpy(&out_ext[out_idx], &in_ext, sizeof(in_ext));
+		out_ext[out_idx].swap_h2n();
 
 		out_idx++;
 	}

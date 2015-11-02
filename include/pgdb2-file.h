@@ -27,6 +27,7 @@ public:
 
 	bool isOpen() const { return (fd >= 0); }
 	uint64_t size() const { return n_pages; }
+	size_t pageSize() const { return page_size; }
 	void setPageSize(size_t sz);
 
 	void open();
