@@ -27,7 +27,22 @@ public:
 	std::string		value;
 	uint32_t		ino_idx;
 
+	uint32_t		key_len;
+	uint32_t		key_end_len;
+	uint32_t		value_len;
+
 	DirEntry() : d_type(DE_NONE), ino_idx(0) {}
+
+	void clear() {
+		d_type = DE_NONE;
+		key.clear();
+		key_end.clear();
+		value.clear();
+		ino_idx = 0;
+		key_len = 0;
+		key_end_len = 0;
+		value_len = 0;
+	}
 };
 
 class Dir {
@@ -37,12 +52,17 @@ public:
 	void clear() {
 		ents.clear();
 	}
+	void eraseIdx(size_t idx) { ents.erase(ents.begin() + idx); }
 	void decode(const std::vector<unsigned char>& buf);
 	void encode(std::vector<unsigned char>& buf) const;
+
+	bool match(const std::string& key, unsigned int& idx) const;
 };
 
 class Inode {
 public:
+	bool		unused;			// unused slot in inode table
+
 	uint64_t	e_ref;			// extent list page
 	uint32_t	e_alloc;		// extent list alloc'd len
 	std::vector<Extent> ext;		// extent list
@@ -98,7 +118,6 @@ private:
 	File		f;
 	Superblock	sb;
 	InodeTable	inotab;
-	Dir		rootDir;
 
 public:
 	DB(std::string filename_, const Options& opt_);

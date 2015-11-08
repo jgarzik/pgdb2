@@ -110,6 +110,7 @@ enum inodetable_flags {
 	ITF_MBZ		= (1U << 30),		// must be zero
 	ITF_HDR		= (1U << 29),		// hdr rec
 	ITF_EXT_INT	= (1U << 28),		// ext list in inode table
+	ITF_UNUSED	= (1U << 27),		// unused slot in inode tbl
 };
 
 struct InodeTableHdr {

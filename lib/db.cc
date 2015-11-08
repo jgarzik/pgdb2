@@ -23,7 +23,8 @@ void Inode::read(File& f, std::vector<unsigned char>& pagebuf) const
 	size_t pgsz = f.pageSize();
 	uint32_t n_pages = size();
 
-	assert(pagebuf.size() >= (pgsz * n_pages));
+	if (pagebuf.size() < (pgsz * n_pages))
+		pagebuf.resize(pgsz * n_pages);
 
 	size_t ofs = 0;
 
@@ -127,6 +128,9 @@ void Dir::decode(const std::vector<unsigned char>& buf)
 			de.key_end.assign((const char *) p, buf_de->de_val_len);
 			p += buf_de->de_val_len;
 			bytes -= buf_de->de_val_len;
+
+			de.key_len = buf_de->de_key_len;
+			de.key_end_len = buf_de->de_val_len;
 			break;
 
 		case DE_KEY:
@@ -135,6 +139,9 @@ void Dir::decode(const std::vector<unsigned char>& buf)
 			de.key.assign((const char *) p, buf_de->de_key_len);
 			p += buf_de->de_key_len;
 			bytes -= buf_de->de_key_len;
+
+			de.key_len = buf_de->de_key_len;
+			de.value_len = buf_de->de_val_len;
 			break;
 
 		case DE_KEY_VALUE:
@@ -149,6 +156,9 @@ void Dir::decode(const std::vector<unsigned char>& buf)
 			de.value.assign((const char *) p, buf_de->de_val_len);
 			p += buf_de->de_val_len;
 			bytes -= buf_de->de_val_len;
+
+			de.key_len = buf_de->de_key_len;
+			de.value_len = buf_de->de_val_len;
 			break;
 		}
 
@@ -240,6 +250,25 @@ void Dir::encode(std::vector<unsigned char>& buf) const
 	}
 }
 
+bool Dir::match(const std::string& key, unsigned int& idx) const
+{
+	for (idx = 0; idx < ents.size(); idx++) {
+		const DirEntry& ent = ents[idx];
+
+		int key_cmp = key.compare(ent.key);
+		if (key_cmp < 0)
+			return false;
+		if (key_cmp == 0)
+			return true;
+
+		if ((ent.d_type == DE_DIR) &&
+		    (key.compare(ent.key_end) <= 0))
+			return true;
+	}
+
+	return false;
+}
+
 DB::DB(std::string filename_, const Options& opt_)
 {
 	running = false;
@@ -250,7 +279,10 @@ DB::DB(std::string filename_, const Options& opt_)
 	open();
 	readSuperblock();
 	readInodeTable();
-	readDir(DBINO_ROOT_DIR, rootDir);
+
+	// for verification
+	Dir dummyDir;
+	readDir(DBINO_ROOT_DIR, dummyDir);
 
 	running = true;
 }
@@ -333,7 +365,9 @@ void DB::clear()
 	writeSuperblock();
 	writeInodeTable();
 	// writeFreeList(); -- none to write
-	writeDir(DBINO_ROOT_DIR, rootDir);
+
+	Dir emptyDir;
+	writeDir(DBINO_ROOT_DIR, emptyDir);
 
 	f.sync();
 }
@@ -460,6 +494,9 @@ void DB::readInodeTable()
 			ino.e_alloc = e->ext_len;
 			readExtList(ino.ext, ino.e_ref, ino.e_alloc);
 		}
+
+		if (hdr->it_flags & ITF_UNUSED)
+			ino.unused = true;
 
 		// add to inode table in memory
 		inotab.push_back(ino);
