@@ -40,6 +40,7 @@ void DB::open()
 {
 	int flags = 0;
 
+	// build OS read/write options
 	if (options.f_read && options.f_write)
 		flags |= O_RDWR;
 	else if (options.f_read)
@@ -47,12 +48,14 @@ void DB::open()
 	else
 		throw std::runtime_error("Invalid read/write options");
 
+	// build OS create option
 	if (options.f_create) {
 		if (!options.f_write)
 			throw std::runtime_error("Invalid creat/write options");
 		flags |= O_CREAT;
 	}
 
+	// open OS file
 	f.open(filename, flags, sizeof(Superblock));
 }
 
@@ -125,14 +128,18 @@ void DB::readSuperblock()
 {
 	assert(f.isOpen());
 
+	// special case: if create option + empty file
+	// initialize brand new database structures
 	if ((f.size() == 0) && (options.f_create)) {
 		clear();
 		return;
 	}
 
+	// read superblock into buffer
 	std::vector<unsigned char> sb_buf(4096);
 	f.read(sb_buf, 0);
 
+	// fill and validate superblock struct
 	memcpy(&sb, &sb_buf[0], sizeof(sb));
 
 	sb.swap_n2h();
@@ -140,6 +147,7 @@ void DB::readSuperblock()
 	if (!sb.valid())
 		throw std::runtime_error("Superblock invalid");
 
+	// reset page file size, now that it is known
 	f.setPageSize(sb.page_size);
 }
 
@@ -147,12 +155,15 @@ void DB::writeSuperblock()
 {
 	assert(f.isOpen());
 
+	// copy current sb
 	Superblock write_sb(sb);
 	write_sb.swap_h2n();
 
+	// copy sb to page
 	std::vector<unsigned char> page(sb.page_size);
 	memcpy(&page[0], &write_sb, sizeof(write_sb));
 
+	// write to storage
 	f.write(page, 0);
 }
 
@@ -371,6 +382,7 @@ void DB::writeExtList(const std::vector<Extent>& ext_list,
 		out_idx++;
 	}
 
+	// write to storage
 	f.write(pages, ref, max_len);
 }
 

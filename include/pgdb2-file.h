@@ -21,12 +21,13 @@ private:
 	int fd;
 	int o_flags;
 	std::string filename;
+
 	size_t page_size;
-	off_t cur_fpos;
 	uint64_t n_pages;
 
-public:
+	off_t cur_fpos;
 
+public:
 	File() : fd(-1), o_flags(0), page_size(4096), cur_fpos(-1) {}
 	File(std::string filename_, int o_flags_ = O_RDONLY, size_t page_size = 4096);
 	~File();
@@ -40,10 +41,13 @@ public:
 	void open();
 	void open(std::string filename_, int o_flags_ = O_RDONLY, size_t page_size = 4096);
 	void close();
+
 	void read(void *buf, uint64_t index, size_t page_count = 1);
 	void read(std::vector<unsigned char>& buf, uint64_t index, size_t page_count = 1);
+
 	void write(const void *buf, uint64_t index, size_t page_count = 1);
 	void write(const std::vector<unsigned char>& buf, uint64_t index, size_t page_count = 1);
+
 	void sync();
 	void extend(uint64_t deltaPages);
 

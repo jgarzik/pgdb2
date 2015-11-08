@@ -18,11 +18,9 @@ void Inode::read(File& f, std::vector<unsigned char>& pagebuf) const
 	size_t pgsz = f.pageSize();
 	uint32_t n_pages = size();
 
-	if (pagebuf.size() < (pgsz * n_pages))
-		pagebuf.resize(pgsz * n_pages);
-
 	size_t ofs = 0;
 
+	// read each extent into consolidated buffer pagebuf
 	for (std::vector<Extent>::const_iterator it = ext.begin();
 	     it != ext.end(); it++) {
 		const Extent& e = (*it);
@@ -46,10 +44,13 @@ void Inode::write(File& f, const std::vector<unsigned char>& pagebuf) const
 
 	size_t ofs = 0;
 
+	// iter thru pagebuf, writing at extent boundaries
 	for (std::vector<Extent>::const_iterator it = ext.begin();
 	     it != ext.end(); it++) {
 		const Extent& e = (*it);
 		size_t byte_ofs = ofs * pgsz;
+
+		// TODO: use ptr-based .write(), eliminate temp buffer
 		std::vector<unsigned char> tmpbuf(pagebuf.begin() + byte_ofs,
 						  pagebuf.begin() + byte_ofs + (e.ext_len * pgsz));
 

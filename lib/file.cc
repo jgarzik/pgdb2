@@ -83,12 +83,14 @@ void File::close()
 
 void File::read(void *buf, uint64_t index, size_t page_count)
 {
+	// seek to page
 	off_t lrc = ::lseek(fd, index * page_size, SEEK_SET);
 	if (lrc < 0)
 		throw std::runtime_error("Failed seek " + filename + ": " + strerror(errno));
 
 	size_t io_size = page_size * page_count;
 
+	// begin I/O
 	ssize_t rrc = ::read(fd, buf, io_size);
 	if (rrc < 0)
 		throw std::runtime_error("Failed read " + filename + ": " + strerror(errno));
@@ -111,6 +113,7 @@ void File::read(std::vector<unsigned char>& buf_vec, uint64_t index,
 
 void File::write(const void *buf, uint64_t index, size_t page_count)
 {
+	// seek to page, if not already there
 	off_t lrc = cur_fpos;
 	off_t want_fpos = index * page_size;
 	if (want_fpos != lrc) {
@@ -121,12 +124,14 @@ void File::write(const void *buf, uint64_t index, size_t page_count)
 
 	size_t io_size = page_size * page_count;
 
+	// begin I/O
 	ssize_t rrc = ::write(fd, buf, io_size);
 	if (rrc < 0)
 		throw std::runtime_error("Failed write " + filename + ": " + strerror(errno));
 	if (rrc != (ssize_t)io_size)
 		throw std::runtime_error("Short write");
 
+	// update cached file position, file size
 	cur_fpos = lrc + io_size;
 
 	if ((index + page_count) > n_pages)

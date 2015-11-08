@@ -145,10 +145,10 @@ struct InodeTableHdr {
 };
 
 enum directory_ent_type {
-	DE_NONE		= 0,
-	DE_DIR		= 1,
-	DE_KEY		= 2,
-	DE_KEY_VALUE	= 3,
+	DE_NONE		= 0,			// empty/invalid entry
+	DE_DIR		= 1,			// dirent key range, dir inode
+	DE_KEY		= 2,			// dirent key, value inode
+	DE_KEY_VALUE	= 3,			// in-dirent key + value
 
 	DE__LAST	= DE_KEY
 };
