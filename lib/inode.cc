@@ -16,13 +16,14 @@ namespace pagedb {
 void Inode::read(File& f, std::vector<unsigned char>& pagebuf) const
 {
 	size_t pgsz = f.pageSize();
-	uint32_t n_pages = size();
 
 	size_t ofs = 0;
 
 	// read each extent into consolidated buffer pagebuf
 	for (std::vector<Extent>::const_iterator it = ext.begin();
 	     it != ext.end(); it++) {
+
+		// TODO: use ptr-based .read(), eliminate temp buffer
 		const Extent& e = (*it);
 		std::vector<unsigned char> tmpbuf(pgsz * e.ext_len);
 
