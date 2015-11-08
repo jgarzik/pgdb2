@@ -83,6 +83,9 @@ void File::close()
 
 void File::read(void *buf, uint64_t index, size_t page_count)
 {
+	if ((index + page_count) > n_pages)
+		throw std::runtime_error("Read past EOF");
+
 	// seek to page
 	off_t lrc = ::lseek(fd, index * page_size, SEEK_SET);
 	if (lrc < 0)
@@ -162,6 +165,44 @@ void File::sync()
 		throw std::runtime_error("Failed fsync " + filename + ": " + strerror(errno));
 }
 
+void File::resize(uint64_t page_count)
+{
+	if (page_count == n_pages)
+		return;
+
+	// extend OS file with zeroes
+	else if (page_count > n_pages) {
+		uint64_t n_alloc = page_count - n_pages;
+		uint64_t start_idx = n_pages;
+		uint64_t end_idx = n_pages + n_alloc;
+
+		std::vector<unsigned char> zero_buf(page_size);
+		for (uint64_t idx = start_idx; idx < end_idx; idx++)
+			write(zero_buf, idx);
+
+		// TODO: posix_fallocate()
+	}
+
+	// shrink OS file
+	else if (page_count < n_pages) {
+		off_t new_size = page_count * page_size;
+		if (::ftruncate(fd, new_size) < 0)
+			throw std::runtime_error("Failed ftruncate " + filename + ": " + strerror(errno));
+
+		n_pages = page_count;
+
+		if (cur_fpos > new_size) {
+			off_t lrc = ::lseek(fd, 0, SEEK_SET);
+			if (lrc < 0)
+				throw std::runtime_error("Failed seek " + filename + ": " + strerror(errno));
+			cur_fpos = 0;
+		}
+	}
+
+	// full sync to update OS filesystem inode, directory etc.
+	sync();
+}
+
 static uint64_t getFileIncrement(uint64_t size)
 {
 	if (size > 16384)
@@ -183,18 +224,9 @@ void File::extend(uint64_t deltaPages)
 		n_slabs++;
 
 	uint64_t new_size = n_slabs * slab_size;
-	uint64_t n_alloc = new_size - n_pages;
 
-	// write zeros to extend
-	uint64_t start_idx = n_pages;
-	uint64_t end_idx = n_pages + n_alloc;
-
-	std::vector<unsigned char> zero_buf(page_size);
-	for (uint64_t idx = start_idx; idx < end_idx; idx++)
-		write(zero_buf, idx);
-
-	// full sync to update OS filesystem inode, directory etc.
-	sync();
+	// resize OS file + fsync
+	resize(new_size);
 }
 
 } // namespace pagedb

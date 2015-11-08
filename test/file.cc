@@ -36,6 +36,7 @@ static void test1()
 
 static void test2()
 {
+	bool saw_err;
 	pagedb::File f;
 
 	// TEST: basic file operations
@@ -89,7 +90,7 @@ static void test2()
 	for (unsigned int i = 0; i < buf.size(); i++)
 		assert(buf[i] == buf2[i]);
 
-	// extend file
+	// extend file + resize(grow)
 	try {
 		f.extend(20);
 	}
@@ -101,6 +102,31 @@ static void test2()
 	assert(f.size() == 64);
 	assert(stat(TESTFN, &st) == 0);
 	assert(st.st_size == (off_t)(64 * f.pageSize()));
+
+	// resize(shrink)
+	try {
+		f.resize(32);
+	}
+	catch (...) {
+		assert(0);
+	}
+
+	assert(f.size() == 32);
+	assert(stat(TESTFN, &st) == 0);
+	assert(st.st_size == (off_t)(32 * f.pageSize()));
+
+	// read past EOF
+	saw_err = false;
+	try {
+		f.read(buf, 32, 1);
+	}
+	catch (const std::runtime_error& error) {
+		saw_err = true;
+	}
+	catch (...) {
+		assert(0);
+	}
+	assert(saw_err == true);
 
 	// close
 	try {

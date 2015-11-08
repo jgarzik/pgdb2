@@ -49,6 +49,7 @@ public:
 	void write(const std::vector<unsigned char>& buf, uint64_t index, size_t page_count = 1);
 
 	void sync();
+	void resize(uint64_t page_count);
 	void extend(uint64_t deltaPages);
 
 private:
