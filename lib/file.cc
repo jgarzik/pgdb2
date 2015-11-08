@@ -39,6 +39,11 @@ void File::open()
 
 	cur_fpos = 0;
 
+#ifdef HAVE_POSIX_FADVISE
+	if (::posix_fadvise(fd, 0, 0, POSIX_FADV_RANDOM) < 0)
+		throw std::runtime_error("Failed fadvise " + filename + ": " + strerror(errno));
+#endif
+
 	setPageCount();
 }
 

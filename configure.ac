@@ -53,6 +53,8 @@ AC_PATH_TOOL(RANLIB, ranlib)
 AC_PATH_TOOL(STRIP, strip)
 PKG_PROG_PKG_CONFIG
 
+AC_CHECK_FUNCS(posix_fadvise)
+
 AC_LANG_PUSH([C++])
 
 case $host in
