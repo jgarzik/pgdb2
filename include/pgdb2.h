@@ -81,10 +81,9 @@ public:
 };
 
 class InodeTable {
-private:
+public:
 	std::vector<Inode> inodes;
 
-public:
 	size_t size() const { return inodes.size(); }
 
 	const Inode& getIdx(uint32_t idx) {
@@ -96,7 +95,9 @@ public:
 	void clear() { inodes.clear(); }
 	void reserve(size_t n) { inodes.reserve(n); }
 	void push_back(const Inode& ino) { inodes.push_back(ino); }
-	void encode(std::vector<unsigned char>& inotab_buf);
+
+	void decode(std::vector<unsigned char>& buf);
+	void encode(std::vector<unsigned char>& inotab_buf) const;
 };
 
 class Options {

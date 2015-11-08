@@ -183,81 +183,15 @@ void DB::readInodeTable()
 	std::vector<unsigned char> inotab_buf(inotab_pages * sb.page_size);
 	tab_ino.read(f, inotab_buf);
 
-	// initialize buffer walk
-	unsigned char *p = &inotab_buf[0];
-	uint32_t bytes = inotab_buf.size();
+	// decode buffer into inode table
+	inotab.decode(inotab_buf);
 
-	// inode table header
-	if (bytes < sizeof(InodeTableHdr))
-		throw std::runtime_error("inode table hdr short read");
-
-	InodeTableHdr* ith = (InodeTableHdr *) p;
-	p += sizeof(InodeTableHdr);
-	bytes -= sizeof(InodeTableHdr);
-
-	ith->swap_n2h();
-
-	if (!ith->valid())
-		throw std::runtime_error("Inode table invalid header");
-	if (inotab_buf.size() < (ith->it_len * (sizeof(InodeTableHdr)+sizeof(Extent)))) //rough
-		throw std::runtime_error("Inode table invalid length");
-
-	// walk inode table entries
-	for (unsigned int idx = 0; (bytes > 0) && (idx < ith->it_len); idx++) {
-
-		// Decode inode table entry header
-		if (bytes < sizeof(InodeTableHdr))
-			throw std::runtime_error("inode table ent short read");
-
-		InodeTableHdr* hdr = (InodeTableHdr *) p;
-		p += sizeof(InodeTableHdr);
-		bytes -= sizeof(InodeTableHdr);
-
-		hdr->swap_n2h();
-		if (!hdr->valid())
-			throw std::runtime_error("Inode table ent invalid");
-
-		// Decode inode table extent data
-		if (bytes < sizeof(Extent))
-			throw std::runtime_error("inode table ent ext short read");
-
-		Extent* e = (Extent *) p;
-		p += sizeof(Extent);
-		bytes -= sizeof(Extent);
-
-		e->swap_n2h();
-
-		bool ext_empty = false;
-		if (e->isNull())
-			ext_empty = true;
-		else if (!e->valid())
-			throw std::runtime_error("Inode table ext invalid");
-
-		Inode ino;
-
-		// empty (null) extent
-		if (ext_empty) {
-			ino.e_ref = 0;
-			ino.e_alloc = 0;
-
-		// internal extent
-		} else if (hdr->it_flags & ITF_EXT_INT) {
-			ino.e_ref = 0;
-			ino.e_alloc = 0;
-			ino.ext.push_back(*e);
-
-		// external extent, read from storage
-		} else {
-			ino.e_ref = e->ext_page;
-			ino.e_alloc = e->ext_len;
+	// deferred I/O from inotab decode step: read inode extent lists
+	for (std::vector<Inode>::iterator it = inotab.inodes.begin();
+	     it != inotab.inodes.end(); it++) {
+		Inode& ino = (*it);
+		if (ino.e_ref && ino.e_alloc)
 			readExtList(ino.ext, ino.e_ref, ino.e_alloc);
-		}
-
-		if (hdr->it_flags & ITF_UNUSED)
-			ino.unused = true;
-
-		// add to inode table in memory
-		inotab.push_back(ino);
 	}
 
 	if (inotab.size() < (DBINO__LAST+1))
