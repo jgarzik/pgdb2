@@ -81,18 +81,15 @@ void File::close()
 	fd = -1;
 }
 
-void File::read(std::vector<unsigned char>& buf, uint64_t index,
-		size_t page_count)
+void File::read(void *buf, uint64_t index, size_t page_count)
 {
 	off_t lrc = ::lseek(fd, index * page_size, SEEK_SET);
 	if (lrc < 0)
 		throw std::runtime_error("Failed seek " + filename + ": " + strerror(errno));
 
 	size_t io_size = page_size * page_count;
-	if (buf.size() < io_size)
-		buf.resize(io_size);
 
-	ssize_t rrc = ::read(fd, &buf[0], io_size);
+	ssize_t rrc = ::read(fd, buf, io_size);
 	if (rrc < 0)
 		throw std::runtime_error("Failed read " + filename + ": " + strerror(errno));
 	if (rrc != (ssize_t)io_size)
@@ -101,8 +98,18 @@ void File::read(std::vector<unsigned char>& buf, uint64_t index,
 	cur_fpos = lrc + io_size;
 }
 
-void File::write(const std::vector<unsigned char>& buf, uint64_t index,
-		 size_t page_count)
+void File::read(std::vector<unsigned char>& buf_vec, uint64_t index,
+		size_t page_count)
+{
+	size_t io_size = page_size * page_count;
+	if (buf_vec.size() < io_size)
+		buf_vec.resize(io_size);
+
+	void *buf = &buf_vec[0];
+	read(buf, index, page_count);
+}
+
+void File::write(const void *buf, uint64_t index, size_t page_count)
 {
 	off_t lrc = cur_fpos;
 	off_t want_fpos = index * page_size;
@@ -113,9 +120,8 @@ void File::write(const std::vector<unsigned char>& buf, uint64_t index,
 	}
 
 	size_t io_size = page_size * page_count;
-	assert(buf.size() >= io_size);
 
-	ssize_t rrc = ::write(fd, &buf[0], io_size);
+	ssize_t rrc = ::write(fd, buf, io_size);
 	if (rrc < 0)
 		throw std::runtime_error("Failed write " + filename + ": " + strerror(errno));
 	if (rrc != (ssize_t)io_size)
@@ -125,6 +131,16 @@ void File::write(const std::vector<unsigned char>& buf, uint64_t index,
 
 	if ((index + page_count) > n_pages)
 		n_pages = index + page_count;
+}
+
+void File::write(const std::vector<unsigned char>& buf_vec, uint64_t index,
+		 size_t page_count)
+{
+	size_t io_size = page_size * page_count;
+	assert(buf_vec.size() >= io_size);
+
+	const void *buf = &buf_vec[0];
+	write(buf, index, page_count);
 }
 
 void File::stat(struct stat& st)

@@ -40,7 +40,9 @@ public:
 	void open();
 	void open(std::string filename_, int o_flags_ = O_RDONLY, size_t page_size = 4096);
 	void close();
+	void read(void *buf, uint64_t index, size_t page_count = 1);
 	void read(std::vector<unsigned char>& buf, uint64_t index, size_t page_count = 1);
+	void write(const void *buf, uint64_t index, size_t page_count = 1);
 	void write(const std::vector<unsigned char>& buf, uint64_t index, size_t page_count = 1);
 	void sync();
 	void extend(uint64_t deltaPages);

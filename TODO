@@ -1,0 +1,3 @@
+
+- Improve error exception thrown to include numeric DB error, OS errno
+
