@@ -16,23 +16,23 @@ namespace pagedb {
 void Inode::read(File& f, std::vector<unsigned char>& pagebuf) const
 {
 	size_t pgsz = f.pageSize();
+	uint32_t n_pages = size();
 
-	size_t ofs = 0;
+	if (pagebuf.size() < (pgsz * n_pages))
+		pagebuf.resize(pgsz * n_pages);
+
+	unsigned char *p = &pagebuf[0];
 
 	// read each extent into consolidated buffer pagebuf
 	for (std::vector<Extent>::const_iterator it = ext.begin();
 	     it != ext.end(); it++) {
-
-		// TODO: use ptr-based .read(), eliminate temp buffer
 		const Extent& e = (*it);
-		std::vector<unsigned char> tmpbuf(pgsz * e.ext_len);
 
-		f.read(tmpbuf, e.ext_page, e.ext_len);
+		f.read((void *) p, e.ext_page, e.ext_len);
 
-		assert(pagebuf.size() >= ((ofs * pgsz) + tmpbuf.size()));
-		memcpy(&pagebuf[ofs * pgsz], &tmpbuf[0], tmpbuf.size());
+		p += (e.ext_len * pgsz);
 
-		ofs += e.ext_len;
+		assert(p <= (&pagebuf[0] + pagebuf.size()));
 	}
 }
 
@@ -41,23 +41,27 @@ void Inode::write(File& f, const std::vector<unsigned char>& pagebuf) const
 	size_t pgsz = f.pageSize();
 	uint32_t n_pages = size();
 
+	assert((pagebuf.size() % pgsz) == 0);
 	assert(pagebuf.size() <= (pgsz * n_pages));
 
-	size_t ofs = 0;
+	const unsigned char *p = &pagebuf[0];
+	uint32_t out_pages = pagebuf.size() / pgsz;
 
 	// iter thru pagebuf, writing at extent boundaries
 	for (std::vector<Extent>::const_iterator it = ext.begin();
-	     it != ext.end(); it++) {
+	     (it != ext.end()) && (out_pages > 0); it++) {
 		const Extent& e = (*it);
-		size_t byte_ofs = ofs * pgsz;
 
-		// TODO: use ptr-based .write(), eliminate temp buffer
-		std::vector<unsigned char> tmpbuf(pagebuf.begin() + byte_ofs,
-						  pagebuf.begin() + byte_ofs + (e.ext_len * pgsz));
+		size_t write_pages = e.ext_len;
+		if (write_pages > out_pages)
+			write_pages = out_pages;
 
-		f.write(tmpbuf, e.ext_page, e.ext_len);
+		f.write((const void *)p, e.ext_page, write_pages);
 
-		ofs += e.ext_len;
+		out_pages -= write_pages;
+		p += (write_pages * pgsz);
+
+		assert(p <= (&pagebuf[0] + pagebuf.size()));
 	}
 }
 

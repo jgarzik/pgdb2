@@ -57,6 +57,12 @@ private:
 	void stat(struct stat& st);
 };
 
+static inline void bufSizeAlign(std::vector<unsigned char>& buf, size_t page_size) {
+	size_t rem = buf.size() % page_size;
+	if (rem || (buf.size() == 0))
+		buf.resize(buf.size() + (page_size - rem));
+}
+
 } // namespace pagedb
 
 #endif // __PGDB2_FILE_H__

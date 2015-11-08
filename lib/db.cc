@@ -26,8 +26,15 @@ DB::DB(std::string filename_, const Options& opt_)
 	options = opt_;
 
 	open();
-	readSuperblock();
-	readInodeTable();
+
+	// special case: if create option + empty file
+	// initialize brand new database structures
+	if ((f.size() == 0) && (options.f_create)) {
+		clear();
+	} else {
+		readSuperblock();
+		readInodeTable();
+	}
 
 	// for verification
 	Dir dummyDir;
@@ -126,15 +133,6 @@ void DB::clear()
 
 void DB::readSuperblock()
 {
-	assert(f.isOpen());
-
-	// special case: if create option + empty file
-	// initialize brand new database structures
-	if ((f.size() == 0) && (options.f_create)) {
-		clear();
-		return;
-	}
-
 	// read superblock into buffer
 	std::vector<unsigned char> sb_buf(4096);
 	f.read(sb_buf, 0);
@@ -280,6 +278,7 @@ void DB::writeInodeTable()
 	writeExtList(tab_ino.ext, tab_ino.e_ref);
 
 	// inode table encoded data
+	bufSizeAlign(inotab_buf, sb.page_size);
 	tab_ino.write(f, inotab_buf);
 }
 
@@ -311,6 +310,7 @@ void DB::writeDir(uint32_t ino_idx, const Dir& d)
 	assert((dir_ino.size() * sb.page_size) >= buf.size());
 
 	// write root directory to storage
+	bufSizeAlign(buf, sb.page_size);
 	dir_ino.write(f, buf);
 }
 
