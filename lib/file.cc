@@ -89,7 +89,8 @@ void File::read(std::vector<unsigned char>& buf, uint64_t index,
 		throw std::runtime_error("Failed seek " + filename + ": " + strerror(errno));
 
 	size_t io_size = page_size * page_count;
-	assert(buf.size() >= io_size);
+	if (buf.size() < io_size)
+		buf.resize(io_size);
 
 	ssize_t rrc = ::read(fd, &buf[0], io_size);
 	if (rrc < 0)
@@ -103,9 +104,13 @@ void File::read(std::vector<unsigned char>& buf, uint64_t index,
 void File::write(const std::vector<unsigned char>& buf, uint64_t index,
 		 size_t page_count)
 {
-	off_t lrc = ::lseek(fd, index * page_size, SEEK_SET);
-	if (lrc < 0)
-		throw std::runtime_error("Failed seek " + filename + ": " + strerror(errno));
+	off_t lrc = cur_fpos;
+	off_t want_fpos = index * page_size;
+	if (want_fpos != lrc) {
+		lrc = ::lseek(fd, want_fpos, SEEK_SET);
+		if (lrc < 0)
+			throw std::runtime_error("Failed seek " + filename + ": " + strerror(errno));
+	}
 
 	size_t io_size = page_size * page_count;
 	assert(buf.size() >= io_size);
@@ -134,6 +139,41 @@ void File::sync()
 	int frc = ::fsync(fd);
 	if (frc < 0)
 		throw std::runtime_error("Failed fsync " + filename + ": " + strerror(errno));
+}
+
+static uint64_t getFileIncrement(uint64_t size)
+{
+	if (size > 16384)
+		return 16384;
+	if (size > 1024)
+		return 1024;
+	if (size > 256)
+		return 256;
+	return 64;
+}
+
+void File::extend(uint64_t deltaPages)
+{
+	// round file size to next increment
+	uint64_t min_size = n_pages + deltaPages;
+	uint64_t slab_size = getFileIncrement(min_size);
+	uint64_t n_slabs = min_size / slab_size;
+	if (min_size % slab_size)
+		n_slabs++;
+
+	uint64_t new_size = n_slabs * slab_size;
+	uint64_t n_alloc = new_size - n_pages;
+
+	// write zeros to extend
+	uint64_t start_idx = n_pages;
+	uint64_t end_idx = n_pages + n_alloc;
+
+	std::vector<unsigned char> zero_buf(page_size);
+	for (uint64_t idx = start_idx; idx < end_idx; idx++)
+		write(zero_buf, idx);
+
+	// full sync to update OS filesystem inode, directory etc.
+	sync();
 }
 
 } // namespace pagedb

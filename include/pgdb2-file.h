@@ -31,6 +31,7 @@ public:
 	File(std::string filename_, int o_flags_ = O_RDONLY, size_t page_size = 4096);
 	~File();
 
+	int fileno() const { return fd; }
 	bool isOpen() const { return (fd >= 0); }
 	uint64_t size() const { return n_pages; }
 	size_t pageSize() const { return page_size; }
@@ -42,6 +43,7 @@ public:
 	void read(std::vector<unsigned char>& buf, uint64_t index, size_t page_count = 1);
 	void write(const std::vector<unsigned char>& buf, uint64_t index, size_t page_count = 1);
 	void sync();
+	void extend(uint64_t deltaPages);
 
 private:
 	void setPageCount();
