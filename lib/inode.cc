@@ -11,7 +11,7 @@
 #include <pgdb2.h>
 #include <cassert>
 
-namespace pagedb {
+namespace page {
 
 void Inode::read(File& f, std::vector<unsigned char>& pagebuf) const
 {
@@ -202,5 +202,5 @@ void InodeTable::encode(std::vector<unsigned char>& inotab_buf) const
 	}
 }
 
-} // namespace pagedb
+} // namespace page
 

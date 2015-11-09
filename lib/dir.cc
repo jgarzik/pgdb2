@@ -11,7 +11,7 @@
 #include <string.h>
 #include <pgdb2.h>
 
-namespace pagedb {
+namespace page {
 
 void Dir::decode(const std::vector<unsigned char>& buf)
 {
@@ -218,5 +218,5 @@ bool Dir::match(const std::string& key, unsigned int& idx) const
 	return false;
 }
 
-} // namespace pagedb
+} // namespace page
 

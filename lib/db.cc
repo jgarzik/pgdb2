@@ -16,7 +16,7 @@
 #include <assert.h>
 #include <pgdb2.h>
 
-namespace pagedb {
+namespace page {
 
 DB::DB(std::string filename_, const Options& opt_)
 {
@@ -328,5 +328,5 @@ DB::~DB()
 	running = false;
 }
 
-} // namespace pagedb
+} // namespace page
 

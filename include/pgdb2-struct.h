@@ -11,7 +11,7 @@
 #include <string>
 #include "endian_compat.h"
 
-namespace pagedb {
+namespace page {
 
 enum inode_constants {
 	DBINO_TABLE	= 0,			// inode table
@@ -220,6 +220,6 @@ struct DirectoryEnt {
 	}
 };
 
-} // namespace pagedb
+} // namespace page
 
 #endif // __PGDB2_STRUCT_H__

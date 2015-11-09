@@ -12,7 +12,7 @@
 
 int main (int argc, char *argv[])
 {
-	pagedb::Options opts;
+	page::Options opts;
 	opts.f_read = true;
 	opts.f_write = false;
 	opts.f_create = false;
@@ -20,7 +20,7 @@ int main (int argc, char *argv[])
 	// TEST: fail, b/c foo.db does not exist
 	bool saw_err = false;
 	try {
-		pagedb::DB db("foo.db", opts);
+		page::DB db("foo.db", opts);
 	}
 	catch (const std::runtime_error& error) {
 		saw_err = true;
@@ -36,7 +36,7 @@ int main (int argc, char *argv[])
 	opts.f_create = true;
 
 	try {
-		pagedb::DB db("foo.db", opts);
+		page::DB db("foo.db", opts);
 	}
 	catch (const std::runtime_error& error) {
 		std::cerr << error.what() << "\n";
@@ -52,7 +52,7 @@ int main (int argc, char *argv[])
 	opts.f_create = false;
 
 	try {
-		pagedb::DB db("foo.db", opts);
+		page::DB db("foo.db", opts);
 	}
 	catch (const std::runtime_error& error) {
 		std::cerr << error.what() << "\n";
@@ -68,7 +68,7 @@ int main (int argc, char *argv[])
 	opts.f_create = false;
 
 	try {
-		pagedb::DB db("foo.db", opts);
+		page::DB db("foo.db", opts);
 	}
 	catch (const std::runtime_error& error) {
 		std::cerr << error.what() << "\n";

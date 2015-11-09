@@ -16,7 +16,7 @@
 #include <assert.h>
 #include <pgdb2-file.h>
 
-namespace pagedb {
+namespace page {
 
 File::File(const std::string& filename_, int o_flags_, size_t page_size_)
 {
@@ -240,4 +240,4 @@ void File::extend(uint64_t deltaPages)
 	resize(new_size);
 }
 
-} // namespace pagedb
+} // namespace page

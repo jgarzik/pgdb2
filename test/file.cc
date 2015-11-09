@@ -22,7 +22,7 @@ static void test1()
 	// TEST: fail to open non-existent file
 	bool saw_err = false;
 	try {
-		pagedb::File f;
+		page::File f;
 		f.open("does-not-exist");
 	}
 	catch (const std::runtime_error& error) {
@@ -37,7 +37,7 @@ static void test1()
 static void test2()
 {
 	bool saw_err;
-	pagedb::File f;
+	page::File f;
 
 	// TEST: basic file operations
 

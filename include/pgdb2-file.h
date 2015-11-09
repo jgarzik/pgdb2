@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <fcntl.h>
 
-namespace pagedb {
+namespace page {
 
 class File {
 private:
@@ -63,6 +63,6 @@ static inline void bufSizeAlign(std::vector<unsigned char>& buf, size_t page_siz
 		buf.resize(buf.size() + (page_size - rem));
 }
 
-} // namespace pagedb
+} // namespace page
 
 #endif // __PGDB2_FILE_H__

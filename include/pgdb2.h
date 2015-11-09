@@ -17,7 +17,7 @@
 #include "pgdb2-file.h"
 #include "pgdb2-struct.h"
 
-namespace pagedb {
+namespace page {
 
 class DirEntry {
 public:
@@ -141,6 +141,6 @@ private:
 
 };
 
-} // namespace pagedb
+} // namespace page
 
 #endif // __PGDB2_H__
