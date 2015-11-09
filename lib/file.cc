@@ -18,12 +18,14 @@
 
 namespace pagedb {
 
-File::File(std::string filename_, int o_flags_, size_t page_size_)
+File::File(const std::string& filename_, int o_flags_, size_t page_size_)
 {
 	fd = -1;
 	o_flags = o_flags_;
 	filename = filename_;
 	page_size = page_size_;
+	n_pages = 0;
+	cur_fpos = -1;
 }
 
 File::~File()
@@ -79,11 +81,15 @@ void File::open(std::string filename_, int o_flags_, size_t page_size_)
 
 void File::close()
 {
-	if (fd < 0)
-		return;
+	if (fd >= 0) {
+		::close(fd);
+		fd = -1;
+	}
 
-	::close(fd);
-	fd = -1;
+	o_flags = 0;
+	filename.clear();
+	n_pages = 0;
+	cur_fpos = -1;
 }
 
 void File::read(void *buf, uint64_t index, size_t page_count)

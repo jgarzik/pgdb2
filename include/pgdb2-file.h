@@ -18,18 +18,18 @@ namespace pagedb {
 
 class File {
 private:
-	int fd;
-	int o_flags;
-	std::string filename;
+	int fd;			// our file descriptor, or -1 (closed/invalid)
+	int o_flags;		// flags passed to open(2)
+	std::string filename;	// filename passed to open(2)
 
-	size_t page_size;
-	uint64_t n_pages;
+	size_t page_size;	// page size (short term: pow 2; LT: any)
+	uint64_t n_pages;	// cache: current file size, in pages
 
-	off_t cur_fpos;
+	off_t cur_fpos;		// cache: current OS file position, or -1
 
 public:
-	File() : fd(-1), o_flags(0), page_size(4096), cur_fpos(-1) {}
-	File(std::string filename_, int o_flags_ = O_RDONLY, size_t page_size = 4096);
+	File() : fd(-1), o_flags(0), page_size(4096), n_pages(0), cur_fpos(-1) {}
+	File(const std::string& filename_, int o_flags_ = O_RDONLY, size_t page_size = 4096);
 	~File();
 
 	int fileno() const { return fd; }
