@@ -216,18 +216,25 @@ void DB::writeInodeTable()
 	tab_ino.write(f, inotab_buf);
 }
 
+void DB::readInodeData(uint32_t ino_idx, std::vector<unsigned char>& buf)
+{
+	// lookup inode
+	assert(ino_idx < inotab.size());
+	const Inode& ino = inotab.getIdx(ino_idx);
+	uint32_t n_pages = ino.size();
+
+	// read from storage into buffer
+	buf.resize(n_pages * sb.page_size);
+	ino.read(f, buf);
+}
+
 void DB::readDir(uint32_t ino_idx, Dir& d)
 {
 	d.clear();
 
-	// lookup inode
-	assert(ino_idx < inotab.size());
-	const Inode& dir_ino = inotab.getIdx(ino_idx);
-	uint32_t n_pages = dir_ino.size();
-
 	// read from storage into buffer
-	std::vector<unsigned char> buf(n_pages * sb.page_size);
-	dir_ino.read(f, buf);
+	std::vector<unsigned char> buf;
+	readInodeData(ino_idx, buf);
 
 	// decode directory buffer
 	d.decode(buf);

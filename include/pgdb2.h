@@ -124,11 +124,14 @@ public:
 	DB(std::string filename_, const Options& opt_);
 	~DB();
 
+	bool get(const std::string& key, std::string& valueOut);
+
 private:
 	void open();
 
 	void readSuperblock();
 	void readInodeTable();
+	void readInodeData(uint32_t ino_idx, std::vector<unsigned char>& buf);
 	void readDir(uint32_t ino_idx, Dir& d);
 	void readExtList(std::vector<Extent> &ext_list, uint64_t ref, uint32_t len = 1);
 
