@@ -56,7 +56,7 @@ void Dir::decode(const std::vector<unsigned char>& buf)
 			throw std::runtime_error("Dir ent buf corrupted");
 
 		DirEntry de;
-		de.d_type = (enum directory_ent_type)(buf_de->de_flags & DF_ENT_TYPE);
+		de.d_type = (enum directory_ent_type)(buf_de->de_flags & DE_ENT_TYPE);
 		de.ino_idx = buf_de->de_ino;
 
 		// Decode variable length trailer

@@ -150,14 +150,17 @@ enum directory_ent_type {
 	DE_KEY		= 2,			// dirent key, value inode
 	DE_KEY_VALUE	= 3,			// in-dirent key + value
 
-	DE__LAST	= DE_KEY
+	DE__LAST	= DE_KEY_VALUE
+};
+
+enum directory_ent_masks {
+	DE_ENT_TYPE	= 0xf,			// dirent type mask
 };
 
 enum directory_flags {
 	DF_MBO		= (1U << 31),		// must be one
 	DF_MBZ		= (1U << 30),		// must be zero
 
-	DF_ENT_TYPE	= 0xf,			// dirent type mask
 };
 
 struct DirectoryHdr {
@@ -205,7 +208,7 @@ struct DirectoryEnt {
 		de_ino = htole32(de_ino);
 	}
 	enum directory_ent_type dType() const {
-		return (enum directory_ent_type) (de_flags & DF_ENT_TYPE);
+		return (enum directory_ent_type) (de_flags & DE_ENT_TYPE);
 	}
 	bool valid() const {
 		if ((!(de_flags & DF_MBO)) ||
